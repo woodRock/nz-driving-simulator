@@ -1,0 +1,51 @@
+import { Canvas } from '@react-three/fiber';
+import { Environment } from '@react-three/drei';
+import { Physics } from '@react-three/rapier';
+import { useGameStore } from './store/gameStore';
+import { TIntersectionScenario } from './scenarios/TIntersectionScenario';
+import { RoundaboutScenario } from './scenarios/RoundaboutScenario';
+import { WellingtonScenario } from './scenarios/WellingtonScenario';
+import { StopSignScenario } from './scenarios/StopSignScenario';
+import { PedestrianScenario } from './scenarios/PedestrianScenario';
+import { ParallelParkingScenario } from './scenarios/ParallelParkingScenario';
+import { UI } from './components/UI';
+
+function Scene() {
+  const { currentScenario, currentLevelIndex, levelStatus } = useGameStore();
+
+  // Unique key to force re-mount when retrying (status goes back to 'playing')
+  // We combine scenario ID and status to ensure a fresh start on retry.
+  const key = `${currentScenario}-${levelStatus === 'playing' ? 'play' : 'stop'}-${currentLevelIndex}`;
+
+  return (
+    <>
+      <ambientLight intensity={0.5} />
+      <directionalLight position={[10, 20, 10]} intensity={1} castShadow />
+      <Environment preset="city" />
+      
+      <Physics>
+        <group key={key}>
+          {currentScenario === 't-intersection' && <TIntersectionScenario />}
+          {currentScenario === 'roundabout' && <RoundaboutScenario />}
+          {currentScenario === 'stop-sign' && <StopSignScenario />}
+          {currentScenario === 'pedestrian' && <PedestrianScenario />}
+          {currentScenario === 'parking' && <ParallelParkingScenario />}
+          {currentScenario === 'wellington' && <WellingtonScenario />}
+        </group>
+      </Physics>
+    </>
+  );
+}
+
+function App() {
+  return (
+    <>
+      <UI />
+      <Canvas>
+        <Scene />
+      </Canvas>
+    </>
+  );
+}
+
+export default App;
