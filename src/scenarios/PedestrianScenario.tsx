@@ -4,7 +4,7 @@ import { StraightRoad } from '../components/world/StraightRoad';
 import { Car } from '../components/vehicle/Car';
 import { Pedestrian } from '../components/vehicle/Pedestrian'; // Import the new Pedestrian component
 import { useGameStore } from '../store/gameStore';
-import { RigidBody } from '@react-three/rapier';
+import { RigidBody, RapierRigidBody } from '@react-three/rapier'; // Import RapierRigidBody
 
 export const PedestrianScenario: React.FC = () => {
   const { setMessage, telemetry, failLevel, passLevel } = useGameStore();
@@ -12,12 +12,13 @@ export const PedestrianScenario: React.FC = () => {
   const failedRef = useRef(false);
   const [hasStopped, setHasStopped] = useState(false); // New state for stop detection
   const pedestrianCrossedRef = useRef(false); // Track if pedestrian has cleared
+  const pedestrianRef = useRef<RapierRigidBody>(null); // Ref for the Pedestrian's RigidBody
 
   useEffect(() => {
     setMessage('Scenario: Pedestrian Crossing. Give way to the pedestrian!');
   }, [setMessage]);
 
-  useFrame((state) => {
+  useFrame(() => {
     if (finished || failedRef.current) return;
     const { position, speed } = telemetry;
     const playerSpeed = speed;
@@ -25,13 +26,23 @@ export const PedestrianScenario: React.FC = () => {
     // Pedestrian crosses at z = -20, across X from -10 to 10
     const pedestrianCrossingZ = -20;
     const playerStopLineZ = -15; // Player needs to stop before this Z
-    const pedestrianOnRoadMinX = -5; // Approx start of crossing
-    const pedestrianOnRoadMaxX = 5;  // Approx end of crossing
+    const roadWidth = 10; // Road is 10 units wide (X from -5 to 5)
+    const pedestrianRoadStartX = -roadWidth / 2; // -5
+    const pedestrianRoadEndX = roadWidth / 2;    // 5
 
-    // Simplified pedestrian position check (pedestrian always crosses)
-    // For a more robust check, we'd need to know the pedestrian's current position.
-    // For now, let's assume pedestrian is "present" on the road if time > delay.
-    const pedestrianPresent = state.clock.getElapsedTime() > 1; // Pedestrian starts after 1s delay
+    // Get Pedestrian's actual position if ref is available
+    let currentPedestrianX = 0;
+    let isPedestrianOnRoad = false;
+    if (pedestrianRef.current) {
+        currentPedestrianX = pedestrianRef.current.translation().x;
+        // Check if pedestrian is actually on the road
+        isPedestrianOnRoad = (currentPedestrianX > pedestrianRoadStartX && currentPedestrianX < pedestrianRoadEndX);
+    }
+    
+    // We now have `isPedestrianOnRoad` which is more accurate.
+    const pedestrianPresent = isPedestrianOnRoad; 
+
+    // console.log(`Pedestrian X: ${currentPedestrianX.toFixed(2)}, On Road: ${isPedestrianOnRoad}, Player Z: ${position.z.toFixed(2)}, Player Speed: ${playerSpeed.toFixed(2)}, hasStopped: ${hasStopped}`);
 
 
     // Stop Detection: Player must stop before playerStopLineZ if pedestrian is present
@@ -41,12 +52,12 @@ export const PedestrianScenario: React.FC = () => {
         setHasStopped(true);
     }
 
-    // Pedestrian crossed logic (simplistic: after some time, or if player stops)
-    // For now, let's say pedestrian has "crossed" if player has stopped for them.
-    if (hasStopped && !pedestrianCrossedRef.current) {
-        // In a real scenario, this would check pedestrian's actual x position.
-        // For stationary type pedestrian, we assume they eventually cross if player stops.
-        pedestrianCrossedRef.current = true;
+    // Pedestrian crossed logic: Pedestrian has moved past the road boundaries
+    if (pedestrianRef.current && !pedestrianCrossedRef.current) {
+        if (currentPedestrianX >= pedestrianRoadEndX) { // Pedestrian has crossed the entire road
+            pedestrianCrossedRef.current = true;
+            console.log("PEDESTRIAN CROSSED!");
+        }
     }
 
     // Fail if player crosses stop line without stopping while pedestrian is present
@@ -59,12 +70,19 @@ export const PedestrianScenario: React.FC = () => {
     
     // Pass condition: Player successfully passed the pedestrian crossing zone
     if (position.z < pedestrianCrossingZ - 10) { // Player is well past the crossing
-        if (!hasStopped && pedestrianPresent) { // If pedestrian was present, player must have stopped
+        if (pedestrianPresent && !hasStopped) { // If pedestrian was present and player didn't stop
             failLevel('You did not stop for the pedestrian!');
             failedRef.current = true;
             setFinished(true);
             return;
         }
+        if (!pedestrianCrossedRef.current && pedestrianPresent) { // If pedestrian was present and didn't cross
+             failLevel('You drove before the pedestrian safely crossed!');
+             failedRef.current = true;
+             setFinished(true);
+             return;
+        }
+
         passLevel();
         setFinished(true);
     }
@@ -85,7 +103,7 @@ export const PedestrianScenario: React.FC = () => {
       <StraightRoad position={[0, 0, -40]} length={20} />
 
       {/* Pedestrian crossing the road */}
-      <Pedestrian startPos={[-5, 0.9, -7.5]} endPos={[10, 0.9, -7.5]} speed={1.5} delay={1} />
+      {React.createElement(Pedestrian as any, { ref: pedestrianRef, startPos: [-5, 0.2, -10], endPos: [12.5, 0.2, -10], speed: 1.5, delay: 1 })}
       
       {/* Crossing Markings (Zebra Crossing) */}
       {Array.from({ length: 10 }).map((_, i) => (

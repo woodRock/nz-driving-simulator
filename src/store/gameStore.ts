@@ -31,6 +31,7 @@ interface GameState {
   message: string;
   score: number;
   telemetry: Telemetry;
+  isPaused: boolean; // New state property
 
   // Actions
   setMessage: (msg: string) => void;
@@ -44,6 +45,7 @@ interface GameState {
   failLevel: (reason: string) => void;
   goToMenu: () => void;
   selectScenario: (id: ScenarioId) => void;
+  togglePause: () => void; // New action
 }
 
 export const useGameStore = create<GameState>((set, get) => ({
@@ -53,6 +55,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   message: 'Welcome! Select a scenario.',
   score: 100,
   telemetry: { speed: 0, position: { x: 0, y: 0, z: 0 }, indicators: { left: false, right: false } },
+  isPaused: false, // Initial state for new property
 
   setMessage: (msg) => set({ message: msg }),
   setScore: (score) => set({ score }),
@@ -64,7 +67,8 @@ export const useGameStore = create<GameState>((set, get) => ({
           currentScenario: SCENARIOS[0].id, 
           levelStatus: 'playing', 
           message: SCENARIOS[0].description,
-          score: 100 
+          score: 100,
+          isPaused: false // Ensure not paused when starting career
       });
   },
 
@@ -76,40 +80,41 @@ export const useGameStore = create<GameState>((set, get) => ({
               currentScenario: SCENARIOS[nextIndex].id, 
               levelStatus: 'playing',
               message: SCENARIOS[nextIndex].description,
-              score: 100
+              score: 100,
+              isPaused: false // Ensure not paused when moving to next level
           });
       } else {
-          set({ currentScenario: 'menu', message: 'Career Completed! Well done.' });
+          set({ currentScenario: 'menu', message: 'Career Completed! Well done.', isPaused: false });
       }
   },
 
   retryLevel: () => {
-      // Force re-mount by briefly setting to menu or just resetting status?
-      // Ideally, the parent component handles unmount/remount on key change.
-      // We'll just reset status and let the UI/Scene handle the reload.
       const idx = get().currentLevelIndex;
       set({ 
           levelStatus: 'playing', 
           message: SCENARIOS[idx].description,
-          score: 100
+          score: 100,
+          isPaused: false // Ensure not paused when retrying level
       });
-      // Note: A real reload might need a key change in the Scene component.
   },
 
   passLevel: () => {
-      set({ levelStatus: 'passed', message: 'PASSED! Press Next to continue.' });
+      set({ levelStatus: 'passed', message: 'PASSED! Press Next to continue.', isPaused: false }); // Ensure not paused when passing
   },
 
   failLevel: (reason) => {
-      set({ levelStatus: 'failed', message: `FAILED: ${reason}`, score: 0 });
+      set({ levelStatus: 'failed', message: `FAILED: ${reason}`, score: 0, isPaused: false }); // Ensure not paused when failing
   },
 
   goToMenu: () => {
-      set({ currentScenario: 'menu', message: 'Welcome' });
+      set({ currentScenario: 'menu', message: 'Welcome', isPaused: false }); // Ensure not paused when going to menu
   },
 
   selectScenario: (id) => {
-      set({ currentScenario: id, levelStatus: 'playing', message: '', score: 100 });
+      set({ currentScenario: id, levelStatus: 'playing', message: '', score: 100, isPaused: false }); // Ensure not paused when selecting scenario
+  },
+
+  togglePause: () => {
+      set((state) => ({ isPaused: !state.isPaused }));
   }
 }));
-

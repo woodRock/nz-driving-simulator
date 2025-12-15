@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react'; // Import useState
 import { useGameStore, SCENARIOS } from '../store/gameStore';
 
 export const UI: React.FC = () => {
@@ -11,8 +11,50 @@ export const UI: React.FC = () => {
         nextLevel,
         retryLevel,
         selectScenario,
-        goToMenu
+        goToMenu,
+        isPaused,         // Get isPaused state
+        togglePause       // Get togglePause action
     } = useGameStore();
+
+    const [showControls, setShowControls] = useState(false); // New state for controls visibility
+
+    // Keyboard event listener for game controls
+    useEffect(() => {
+        const handleKeyDown = (event: KeyboardEvent) => {
+            // Prevent interference with input fields if any in the future
+            if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
+                return;
+            }
+
+            if (currentScenario === 'menu' || showControls) return; // Don't handle shortcuts in main menu or if controls are open
+
+            switch (event.key) {
+                case 'Escape':
+                    if (showControls) {
+                        setShowControls(false); // Close controls menu if open
+                    } else if (isPaused) { // If paused (and controls not open), resume
+                        togglePause();
+                    } else if (levelStatus === 'playing') { // If playing, pause
+                        togglePause();
+                    }
+                    break;
+                case 'Enter':
+                    if (levelStatus === 'passed' && !isPaused) { // Only proceed if passed and not paused
+                        nextLevel();
+                    }
+                    break;
+                case 'r':
+                case 'R':
+                    if (levelStatus === 'failed' || (levelStatus === 'playing' && isPaused)) { // Retry if failed or currently playing (from pause)
+                        retryLevel();
+                    }
+                    break;
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [currentScenario, levelStatus, isPaused, showControls, nextLevel, retryLevel, togglePause]); // Dependencies for useEffect
   
     // Main Menu
     if (currentScenario === 'menu') {
@@ -42,6 +84,60 @@ export const UI: React.FC = () => {
       );
     }
   
+    // Pause Overlay
+    if (isPaused) {
+        if (showControls) {
+            return (
+                <div style={{
+                    position: 'absolute',
+                    top: 0, left: 0, width: '100%', height: '100%',
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                    background: 'rgba(0,0,0,0.8)', color: 'white', zIndex: 30
+                }}>
+                    <h1>CONTROLS</h1>
+                    <ul style={{ listStyle: 'none', padding: 0, textAlign: 'left', fontSize: '1.2em' }}>
+                        <li style={{ marginBottom: '10px' }}><strong>W:</strong> Accelerate</li>
+                        <li style={{ marginBottom: '10px' }}><strong>S:</strong> Brake / Reverse</li>
+                        <li style={{ marginBottom: '10px' }}><strong>A:</strong> Steer Left</li>
+                        <li style={{ marginBottom: '10px' }}><strong>D:</strong> Steer Right</li>
+                        <li style={{ marginBottom: '10px' }}><strong>Q:</strong> Indicate Left</li>
+                        <li style={{ marginBottom: '10px' }}><strong>E:</strong> Indicate Right</li>
+                        <li style={{ marginBottom: '10px' }}><strong>Esc:</strong> Pause / Resume</li>
+                        <li style={{ marginBottom: '10px' }}><strong>Enter:</strong> Next Level (when Passed)</li>
+                        <li style={{ marginBottom: '10px' }}><strong>R:</strong> Restart Scenario</li>
+                    </ul>
+                    <button onClick={() => setShowControls(false)} style={{ margin: '10px', padding: '15px 30px', fontSize: '1.5em', cursor: 'pointer' }}>
+                        Back to Pause Menu
+                    </button>
+                </div>
+            );
+        }
+
+        return (
+            <div style={{
+                position: 'absolute',
+                top: 0, left: 0, width: '100%', height: '100%',
+                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                background: 'rgba(0,0,0,0.8)', color: 'white', zIndex: 30 // Higher zIndex than other overlays
+            }}>
+                <h1>PAUSED</h1>
+                <p>Press 'Esc' to resume, 'R' to restart, or choose an option below.</p>
+                <button onClick={togglePause} style={{ margin: '10px', padding: '15px 30px', fontSize: '1.5em', cursor: 'pointer' }}>
+                    Resume
+                </button>
+                <button onClick={retryLevel} style={{ margin: '10px', padding: '10px 20px', fontSize: '1em', cursor: 'pointer' }}>
+                    Restart Scenario
+                </button>
+                <button onClick={() => setShowControls(true)} style={{ margin: '10px', padding: '10px 20px', fontSize: '1em', cursor: 'pointer' }}>
+                    Controls
+                </button>
+                <button onClick={goToMenu} style={{ margin: '10px', padding: '10px 20px', fontSize: '1em', cursor: 'pointer' }}>
+                    Quit to Menu
+                </button>
+            </div>
+        );
+    }
+
     // Success Overlay
     if (levelStatus === 'passed') {
         return (
@@ -53,6 +149,7 @@ export const UI: React.FC = () => {
             }}>
               <h1>SCENARIO PASSED!</h1>
               <p>{message}</p>
+              <p>Press 'Enter' to continue.</p>
               <button onClick={nextLevel} style={{ marginTop: '20px', padding: '15px 30px', fontSize: '1.5em', cursor: 'pointer' }}>
                   {currentLevelIndex < SCENARIOS.length - 1 ? 'Next Level' : 'Finish Career'}
               </button>
@@ -71,6 +168,7 @@ export const UI: React.FC = () => {
           }}>
             <h1>SCENARIO FAILED</h1>
             <h2 style={{color: '#ffcdd2'}}>{message}</h2>
+            <p>Press 'R' to retry, or choose an option below.</p>
             <button onClick={retryLevel} style={{ marginTop: '20px', padding: '15px 30px', fontSize: '1.5em', cursor: 'pointer' }}>
                 Retry Scenario
             </button>
@@ -81,32 +179,37 @@ export const UI: React.FC = () => {
       );
   }
   
-    // In-Game HUD
-    return (
-      <div style={{
-        position: 'absolute',
-        top: 0, left: 0, width: '100%',
-        padding: '20px',
-        boxSizing: 'border-box',
-        color: 'white',
-        pointerEvents: 'none',
-        display: 'flex',
-        justifyContent: 'space-between'
-      }}>
-        <div>
-          {/* Level Indicator */}
-          {currentScenario !== 'wellington' && (
-              <h2 style={{ background: 'rgba(0,0,0,0.5)', padding: '5px 10px', borderRadius: '5px' }}>
-                  Scenario {currentLevelIndex + 1}/{SCENARIOS.length}: {SCENARIOS[currentLevelIndex]?.title}
-              </h2>
-          )}
-          <h3 style={{ background: 'rgba(0,0,0,0.5)', padding: '5px 10px', borderRadius: '5px' }}>
-              {message}
-          </h3>
-        </div>
-        <div style={{ pointerEvents: 'auto' }}>
-          <button onClick={goToMenu} style={{ padding: '10px', cursor: 'pointer' }}>Menu</button>
-        </div>
-      </div>
-    );
-  };
+    // In-Game HUD (only render if not paused, passed, or failed)
+    if (currentScenario !== 'menu' && levelStatus === 'playing') { // isPaused handled by separate overlay
+        return (
+          <div style={{
+            position: 'absolute',
+            top: 0, left: 0, width: '100%',
+            padding: '20px',
+            boxSizing: 'border-box',
+            color: 'white',
+            pointerEvents: 'none',
+            display: 'flex',
+            justifyContent: 'space-between'
+          }}>
+            <div>
+              {/* Level Indicator */}
+              {currentScenario !== 'wellington' && (
+                  <h2 style={{ background: 'rgba(0,0,0,0.5)', padding: '5px 10px', borderRadius: '5px' }}>
+                      Scenario {currentLevelIndex + 1}/{SCENARIOS.length}: {SCENARIOS[currentLevelIndex]?.title}
+                  </h2>
+              )}
+              <h3 style={{ background: 'rgba(0,0,0,0.5)', padding: '5px 10px', borderRadius: '5px' }}>
+                      {message}
+                  </h3>
+                </div>
+                <div style={{ pointerEvents: 'auto' }}>
+                  <button onClick={togglePause} style={{ padding: '10px', cursor: 'pointer' }}>Pause</button>
+                </div>
+              </div>
+            );
+        }
+        
+        // Fallback or if no UI should be displayed (e.g., during loading, though not explicitly handled here)
+        return null;
+    };

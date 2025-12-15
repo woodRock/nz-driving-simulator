@@ -91,7 +91,7 @@ export const RoundaboutScenario: React.FC = () => {
 
       {/* Stationary AI Car: Approaching from top-left, indicating left turn (does not cross the player's path) */}
       <StationaryAICar 
-        position={[-12.5, 0.2, -17.5]} // Corrected Y-position to 1 for placement on the ground
+        position={[-12.5, 0.2, -21.5]} // Corrected Y-position to 1 for placement on the ground
         rotation={[0, 3 * Math.PI / 2, 0]} // Faces +X, towards the intersection
         color="orange" 
         indicatingLeft={true} // Explicitly set to not indicate left
