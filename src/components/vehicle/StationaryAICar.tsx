@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { RigidBody, CuboidCollider } from '@react-three/rapier';
+import React, { useState, useEffect, useRef } from 'react';
 import * as THREE from 'three';
+import { type PhysicsObject, PhysicsSystem } from '../../physics/PhysicsSystem';
 
 interface StationaryAICarProps {
     position?: [number, number, number];
@@ -22,6 +22,17 @@ export const StationaryAICar: React.FC<StationaryAICarProps> = ({
     // Indicator blinking state
     const [blink, setBlink] = useState(false);
 
+    // Unique ID for physics system registration
+    const physicsObjectId = useRef(`stationaryAICar_${Math.random().toFixed(5)}`);
+    // Car dimensions for AABB collision
+    const carSize = new THREE.Vector3(2, 1, 4); // Based on main car body boxGeometry args
+    
+    // Convert initialRotation to a Quaternion once
+    const initialQuaternion = new THREE.Quaternion().setFromEuler(new THREE.Euler(...rotation));
+
+    // Ref for the visual group to get its position for physics registration
+    const visualGroupRef = useRef<THREE.Group>(null);
+
     useEffect(() => {
         const interval = setInterval(() => {
             setBlink((b) => !b);
@@ -29,19 +40,35 @@ export const StationaryAICar: React.FC<StationaryAICarProps> = ({
         return () => clearInterval(interval);
     }, []);
 
-    // Euler to Quaternion for initial rotation
-    const euler = new THREE.Euler(...rotation);
+    useEffect(() => {
+        if (!visualGroupRef.current) return;
+
+        // Register stationary AI car with PhysicsSystem
+        const stationaryAICarPhysicsObject: PhysicsObject = {
+            id: physicsObjectId.current,
+            position: visualGroupRef.current.position, // Use visual group's position
+            quaternion: initialQuaternion, // Use initial quaternion
+            size: carSize,
+            type: userData.type, // Use provided userData type, default to 'car'
+            onCollide: (other: PhysicsObject) => {
+                console.log(`StationaryAICar collided with ${other.type}`);
+            }
+        };
+        PhysicsSystem.registerObject(stationaryAICarPhysicsObject);
+
+        // Cleanup: unregister on unmount
+        return () => {
+            PhysicsSystem.unregisterObject(physicsObjectId.current);
+        };
+    }, [initialQuaternion, userData.type]); // Depend on initialQuaternion and userData.type
 
     return (
-        <RigidBody
-            type="fixed" // Stationary AI cars are fixed
+        <group
+            ref={visualGroupRef}
             position={position}
-            rotation={[euler.x, euler.y, euler.z]}
-            colliders={false}
+            quaternion={initialQuaternion}
             userData={userData}
         >
-            <CuboidCollider args={[1, 0.5, 2]} position={[0, 0.5, 0]} />
-
             {/* Car Body */}
             <mesh position={[0, 0.5, 0]} castShadow>
                 <boxGeometry args={[2, 1, 4]} />
@@ -110,6 +137,6 @@ export const StationaryAICar: React.FC<StationaryAICarProps> = ({
                     emissiveIntensity={2}
                 />
             </mesh>
-        </RigidBody>
+        </group>
     );
 };

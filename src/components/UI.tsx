@@ -67,7 +67,7 @@ export const UI: React.FC = () => {
         }}>
           <h1>NZ Driving Simulator</h1>
           <p style={{ maxWidth: '600px', textAlign: 'center', marginBottom: '20px' }}>
-              Master the New Zealand Road Code through 5 interactive scenarios.
+              Master the New Zealand Road Code through interactive scenarios.
           </p>
           
           <button onClick={startCareer} style={{ margin: '10px', padding: '15px 40px', fontSize: '1.5em', cursor: 'pointer', background: '#4CAF50', color: 'white', border: 'none', borderRadius: '5px' }}>

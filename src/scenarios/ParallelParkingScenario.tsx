@@ -3,28 +3,98 @@ import { useFrame } from '@react-three/fiber';
 import { StraightRoad } from '../components/world/StraightRoad';
 import { Car } from '../components/vehicle/Car';
 import { useGameStore } from '../store/gameStore';
-import { RigidBody } from '@react-three/rapier';
+import * as THREE from 'three';
+import { type PhysicsObject, PhysicsSystem } from '../physics/PhysicsSystem';
 
 export const ParallelParkingScenario: React.FC = () => {
   const { setMessage, telemetry, failLevel, passLevel } = useGameStore();
   const [finished, setFinished] = useState(false);
   const startTime = useRef(Date.now());
 
+  // Unique IDs for physics system registration
+  const grassPhysicsObjectId = useRef(`grass_${Math.random().toFixed(5)}`);
+  const barrier1PhysicsObjectId = useRef(`barrier1_${Math.random().toFixed(5)}`);
+  const barrier2PhysicsObjectId = useRef(`barrier2_${Math.random().toFixed(5)}`);
+
+  // Grass dimensions for AABB collision
+  const grassSize = new THREE.Vector3(50, 1, 100); // Based on boxGeometry args
+  const grassPosition = new THREE.Vector3(0, -0.6, -20); // Matches the mesh position
+
+  // Barrier dimensions for AABB collision
+  const barrierSize = new THREE.Vector3(2, 1, 4); // Based on boxGeometry args
+  const barrier1Position = new THREE.Vector3(-4, 0.5, -5);
+  const barrier2Position = new THREE.Vector3(-4, 0.5, -19); // Increased separation: -5 to -19 is 14 units center-to-center
+
   useEffect(() => {
     setMessage('Scenario: Parallel Parking. Park in the green box between the barriers.');
   }, [setMessage]);
+
+  useEffect(() => {
+    // Register grass with PhysicsSystem
+    const grassPhysicsObject: PhysicsObject = {
+        id: grassPhysicsObjectId.current,
+        position: grassPosition,
+        quaternion: new THREE.Quaternion(), // Fixed object, identity quaternion
+        size: grassSize,
+        type: 'grass',
+        onCollide: (other: PhysicsObject) => {
+            if (other.type === 'playerCar') {
+                failLevel('You drove off the road!');
+            }
+        }
+    };
+    PhysicsSystem.registerObject(grassPhysicsObject);
+
+    // Register Barrier 1 with PhysicsSystem
+    const barrier1PhysicsObject: PhysicsObject = {
+        id: barrier1PhysicsObjectId.current,
+        position: barrier1Position,
+        quaternion: new THREE.Quaternion(),
+        size: barrierSize,
+        type: 'barrier',
+        onCollide: (other: PhysicsObject) => {
+            if (other.type === 'playerCar') {
+                failLevel('You hit a barrier!');
+            }
+        }
+    };
+    PhysicsSystem.registerObject(barrier1PhysicsObject);
+
+    // Register Barrier 2 with PhysicsSystem
+    const barrier2PhysicsObject: PhysicsObject = {
+        id: barrier2PhysicsObjectId.current,
+        position: barrier2Position,
+        quaternion: new THREE.Quaternion(),
+        size: barrierSize,
+        type: 'barrier',
+        onCollide: (other: PhysicsObject) => {
+            if (other.type === 'playerCar') {
+                failLevel('You hit a barrier!');
+            }
+        }
+    };
+    PhysicsSystem.registerObject(barrier2PhysicsObject);
+
+
+    // Cleanup: unregister on unmount
+    return () => {
+        PhysicsSystem.unregisterObject(grassPhysicsObjectId.current);
+        PhysicsSystem.unregisterObject(barrier1PhysicsObjectId.current);
+        PhysicsSystem.unregisterObject(barrier2PhysicsObjectId.current);
+    };
+  }, [failLevel]); // Depend on failLevel to ensure onCollide has latest ref
 
   useFrame(() => {
     if (finished) return;
     const { position, speed } = telemetry;
 
-    // Target Spot: x: -4, z: -10 (Left side of road)
-    // Box size: 3x6
-    // Bounds: x [-5.5, -2.5], z [-13, -7]
+    // Target Spot: x: -4, z: -12 (Left side of road)
+    // Box size: 3x8
+    // Bounds: x [-5.5, -2.5], z [-16, -8]
     
     if (speed < 0.1 && Date.now() - startTime.current > 3000) {
         // Checking if parked
-        if (position.x > -5.5 && position.x < -2.5 && position.z > -13 && position.z < -7) {
+        if (position.x > -5.5 && position.x < -2.5 && position.z > -16 && position.z < -8) { // Updated Z bounds
             passLevel();
             setFinished(true);
         }
@@ -34,33 +104,31 @@ export const ParallelParkingScenario: React.FC = () => {
   return (
     <group>
        {/* Ground */}
-      <RigidBody type="fixed" colliders="cuboid" friction={1} userData={{ type: 'grass' }}>
-        <mesh position={[0, -0.6, -20]} receiveShadow>
+      <mesh position={grassPosition} receiveShadow>
             <boxGeometry args={[50, 1, 100]} />
             <meshStandardMaterial color="#90a4ae" />
-        </mesh>
-      </RigidBody>
+      </mesh>
 
       <StraightRoad position={[0, 0, 0]} length={20} />
       <StraightRoad position={[0, 0, -20]} length={20} />
 
       {/* Parking Spot Marker */}
-      <mesh position={[-4, 0.02, -10]} rotation={[-Math.PI/2, 0, 0]}>
-        <planeGeometry args={[3, 6]} />
+      <mesh position={[-4, 0.02, -12]} rotation={[-Math.PI/2, 0, 0]}> {/* Updated Z position for centering */}
+        <planeGeometry args={[3, 8]} /> {/* Increased length */}
         <meshStandardMaterial color="green" transparent opacity={0.3} />
       </mesh>
 
       {/* Barriers (representing other cars) */}
-      <RigidBody type="fixed" colliders="cuboid">
-        <mesh position={[-4, 0.5, -5]} castShadow>
+      <group> {/* Wrap in a group for visual grouping */}
+        <mesh position={barrier1Position} castShadow>
             <boxGeometry args={[2, 1, 4]} />
             <meshStandardMaterial color="red" />
         </mesh>
-        <mesh position={[-4, 0.5, -15]} castShadow>
+        <mesh position={barrier2Position} castShadow>
             <boxGeometry args={[2, 1, 4]} />
             <meshStandardMaterial color="blue" />
         </mesh>
-      </RigidBody>
+      </group>
 
       <Car position={[-2.5, 1, 5]} />
     </group>

@@ -1,6 +1,6 @@
-import { Canvas } from '@react-three/fiber';
+import { Canvas, useFrame } from '@react-three/fiber';
 import { Environment } from '@react-three/drei';
-import { Physics } from '@react-three/rapier';
+// Removed: import { Physics } from '@react-three/rapier';
 import { useGameStore } from './store/gameStore';
 import { TIntersectionScenario } from './scenarios/TIntersectionScenario';
 import { RoundaboutScenario } from './scenarios/RoundaboutScenario';
@@ -11,6 +11,11 @@ import { ParallelParkingScenario } from './scenarios/ParallelParkingScenario';
 import { UI } from './components/UI';
 import { TIntersectionRightScenario } from './scenarios/TIntersectionRightScenario';
 import { GiveWayScenario } from './scenarios/GiveWayScenario';
+import { TIntersectionGiveWayScenario } from './scenarios/TIntersectionGiveWayScenario'; // New import
+import { StopSignCrossTrafficScenario } from './scenarios/StopSignCrossTrafficScenario'; // New import
+import { GiveWayMergeTrafficScenario } from './scenarios/GiveWayMergeTrafficScenario'; // New import
+import { GiveWayRightToLeftScenario } from './scenarios/GiveWayRightToLeftScenario'; // New import
+import { PhysicsSystem } from './physics/PhysicsSystem'; // Custom PhysicsSystem import
 
 function Scene() {
   const { currentScenario, currentLevelIndex, levelStatus } = useGameStore();
@@ -19,13 +24,18 @@ function Scene() {
   // We combine scenario ID and status to ensure a fresh start on retry.
   const key = `${currentScenario}-${levelStatus === 'playing' ? 'play' : 'stop'}-${currentLevelIndex}`;
 
+  // Update custom physics system every frame
+  useFrame((_, delta) => {
+    PhysicsSystem.update(delta);
+  });
+
   return (
     <>
       <ambientLight intensity={0.5} />
       <directionalLight position={[10, 20, 10]} intensity={1} castShadow />
       <Environment preset="city" />
       
-      <Physics>
+      {/* Removed: <Physics debug gravity={[0, -9.81, 0]}> */}
         <group key={key}>
           {currentScenario === 'giveway' && <GiveWayScenario />}
           {currentScenario === 't-intersection' && <TIntersectionScenario />}
@@ -35,8 +45,12 @@ function Scene() {
           {currentScenario === 'parking' && <ParallelParkingScenario />}
           {currentScenario === 'wellington' && <WellingtonScenario />}
           {currentScenario === 't-intersection-right' && <TIntersectionRightScenario />}
+          {currentScenario === 't-intersection-give-way' && <TIntersectionGiveWayScenario />}
+          {currentScenario === 'stop-sign-cross-traffic' && <StopSignCrossTrafficScenario />}
+          {currentScenario === 'giveway-merge-traffic' && <GiveWayMergeTrafficScenario />}
+          {currentScenario === 'giveway-right-to-left' && <GiveWayRightToLeftScenario />} {/* New scenario */}
         </group>
-      </Physics>
+      {/* Removed: </Physics> */}
     </>
   );
 }

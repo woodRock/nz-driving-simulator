@@ -4,16 +4,46 @@ import { StraightRoad } from '../components/world/StraightRoad';
 import { Car } from '../components/vehicle/Car';
 
 import { useGameStore } from '../store/gameStore';
-import { RigidBody } from '@react-three/rapier';
+import * as THREE from 'three';
+import { type PhysicsObject, PhysicsSystem } from '../physics/PhysicsSystem';
+
 
 export const CyclistHazardScenario: React.FC = () => {
   const { setMessage, telemetry, passLevel, failLevel } = useGameStore();
   const [finished, setFinished] = useState(false);
   const finishedRef = useRef(false);
 
+  // Unique ID for physics system registration for the grass
+  const grassPhysicsObjectId = useRef(`grass_${Math.random().toFixed(5)}`);
+  // Grass dimensions for AABB collision
+  const grassSize = new THREE.Vector3(100, 1, 200); // Based on boxGeometry args
+  const grassPosition = new THREE.Vector3(0, -0.6, -50); // Matches the mesh position
+
   useEffect(() => {
     setMessage('Scenario: Cyclist Ahead. Overtake safely (leave 1.5m gap).');
   }, [setMessage]);
+
+  useEffect(() => {
+    // Register grass with PhysicsSystem
+    const grassPhysicsObject: PhysicsObject = {
+        id: grassPhysicsObjectId.current,
+        position: grassPosition,
+        quaternion: new THREE.Quaternion(), // Fixed object, identity quaternion
+        size: grassSize,
+        type: 'grass',
+        onCollide: (other: PhysicsObject) => {
+            if (other.type === 'playerCar') {
+                failLevel('You drove off the road!');
+            }
+        }
+    };
+    PhysicsSystem.registerObject(grassPhysicsObject);
+
+    // Cleanup: unregister on unmount
+    return () => {
+        PhysicsSystem.unregisterObject(grassPhysicsObjectId.current);
+    };
+  }, [failLevel]); // Depend on failLevel to ensure onCollide has latest ref
 
   useFrame(() => {
     if (finished || finishedRef.current) return;
@@ -64,8 +94,6 @@ export const CyclistHazardScenario: React.FC = () => {
       <StraightRoad position={[0, 0, -80]} length={10} />
       <StraightRoad position={[0, 0, -90]} length={10} />
       <StraightRoad position={[0, 0, -100]} length={10} />
-
-
 
       {/* Player Car - Starts behind the cyclist in the left lane */}
       <Car position={[-2.5, 1, 0]} /> 

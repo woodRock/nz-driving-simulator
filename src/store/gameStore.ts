@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-export type ScenarioId = 'giveway' | 't-intersection' | 'roundabout' | 'stop-sign' | 'pedestrian' | 'parking' | 'wellington' | 't-intersection-right';
+export type ScenarioId = 'giveway' | 't-intersection' | 'roundabout' | 'stop-sign' | 'pedestrian' | 'parking' | 'wellington' | 't-intersection-right' | 't-intersection-give-way' | 'stop-sign-cross-traffic' | 'giveway-merge-traffic' | 'giveway-right-to-left';
 
 export interface ScenarioDef {
     id: ScenarioId;
@@ -9,9 +9,13 @@ export interface ScenarioDef {
 }
 
 export const SCENARIOS: ScenarioDef[] = [
+    { id: 't-intersection-right', title: 'T-Intersection (Right Turn)', description: 'Give way to ALL traffic. Turn Right. Watch for oncoming traffic and other turning vehicles!' },
+    { id: 't-intersection-give-way', title: 'T-Intersection (Give Way)', description: 'Give way to traffic from your right. Go straight or turn left.' }, // New scenario
+    { id: 'stop-sign-cross-traffic', title: 'Stop Sign (Cross Traffic)', description: 'Come to a complete stop and give way to cross traffic before proceeding.' }, // New scenario
+    { id: 'giveway-merge-traffic', title: 'Give Way (Merge Traffic)', description: 'Give way to continuous traffic flow from your right. Merge safely onto the main road.' }, // New scenario
+    { id: 'giveway-right-to-left', title: 'Give Way (Right-to-Left)', description: 'You are at the intersection. Give way to the car approaching from your right before proceeding straight.' }, // New scenario
     { id: 'giveway', title: 'Give Way', description: 'Give way to crossing traffic.' },
     { id: 't-intersection', title: 'T-Intersection', description: 'Give way to traffic. Turn Left.' },
-    { id: 't-intersection-right', title: 'T-Intersection (Right Turn)', description: 'Give way to ALL traffic. Turn Right. Watch for oncoming traffic and other turning vehicles!' },
     { id: 'roundabout', title: 'Roundabout', description: 'Take the 3rd exit (Right Turn).' },
     { id: 'pedestrian', title: 'Pedestrian Crossing', description: 'Stop for the pedestrian.' },
     { id: 'parking', title: 'Parallel Parking', description: 'Park in the green box between the cars.' },

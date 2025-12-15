@@ -3,20 +3,50 @@ import { useFrame } from '@react-three/fiber';
 import { Roundabout } from '../components/world/Roundabout';
 import { StraightRoad } from '../components/world/StraightRoad';
 import { Car } from '../components/vehicle/Car';
-import { RigidBody } from '@react-three/rapier';
 
 import { useGameStore } from '../store/gameStore';
 import { StationaryAICar } from '../components/vehicle/StationaryAICar';
+import * as THREE from 'three';
+import { type PhysicsObject, PhysicsSystem } from '../physics/PhysicsSystem';
 
 export const RoundaboutScenario: React.FC = () => {
    const { setMessage, telemetry, passLevel, failLevel } = useGameStore();
    const [entered, setEntered] = useState(false);
    const [finished, setFinished] = useState(false);
    const finishedRef = useRef(false);
-  
+
+  // Unique ID for physics system registration for the grass
+  const grassPhysicsObjectId = useRef(`grass_${Math.random().toFixed(5)}`);
+  // Grass dimensions for AABB collision
+  const grassSize = new THREE.Vector3(200, 1, 200); // Based on boxGeometry args
+  const grassPosition = new THREE.Vector3(0, -0.6, -20); // Matches the mesh position
+
     useEffect(() => {
       setMessage('Scenario: Roundabout. Turn Right (3rd Exit). Indicate correctly! Watch for the cyclist.');
     }, [setMessage]);
+
+    useEffect(() => {
+        // Register grass with PhysicsSystem
+        const grassPhysicsObject: PhysicsObject = {
+            id: grassPhysicsObjectId.current,
+            position: grassPosition,
+            quaternion: new THREE.Quaternion(), // Fixed object, identity quaternion
+            size: grassSize,
+            type: 'grass',
+            onCollide: (other: PhysicsObject) => {
+                if (other.type === 'playerCar') {
+                    failLevel('You drove off the road!');
+                }
+            }
+        };
+        PhysicsSystem.registerObject(grassPhysicsObject);
+
+        // Cleanup: unregister on unmount
+        return () => {
+            PhysicsSystem.unregisterObject(grassPhysicsObjectId.current);
+        };
+    }, [failLevel]); // Depend on failLevel to ensure onCollide has latest ref
+
 
     useFrame(() => {
         if (finished || finishedRef.current) return;
@@ -67,12 +97,10 @@ export const RoundaboutScenario: React.FC = () => {
   return (
     <group>
       {/* Ground Plane */}
-      <RigidBody type="fixed" colliders="cuboid" friction={1} userData={{ type: 'grass' }}>
-        <mesh position={[0, -0.6, -20]} receiveShadow>
+      <mesh position={grassPosition} receiveShadow>
             <boxGeometry args={[200, 1, 200]} />
             <meshStandardMaterial color="#558b2f" />
-        </mesh>
-      </RigidBody>
+      </mesh>
 
       {/* Center Roundabout */}
       <Roundabout position={[0, 0, -20]} />

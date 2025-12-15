@@ -4,7 +4,8 @@ import { StraightRoad } from '../components/world/StraightRoad';
 import { Car } from '../components/vehicle/Car';
 import { Pedestrian } from '../components/vehicle/Pedestrian'; // Import the new Pedestrian component
 import { useGameStore } from '../store/gameStore';
-import { RigidBody, RapierRigidBody } from '@react-three/rapier'; // Import RapierRigidBody
+import * as THREE from 'three';
+import { type PhysicsObject, PhysicsSystem } from '../physics/PhysicsSystem';
 
 export const PedestrianScenario: React.FC = () => {
   const { setMessage, telemetry, failLevel, passLevel } = useGameStore();
@@ -12,11 +13,39 @@ export const PedestrianScenario: React.FC = () => {
   const failedRef = useRef(false);
   const [hasStopped, setHasStopped] = useState(false); // New state for stop detection
   const pedestrianCrossedRef = useRef(false); // Track if pedestrian has cleared
-  const pedestrianRef = useRef<RapierRigidBody>(null); // Ref for the Pedestrian's RigidBody
+  const pedestrianRef = useRef<THREE.Mesh>(null); // Ref for the Pedestrian's mesh
+
+  // Unique ID for physics system registration for the grass
+  const grassPhysicsObjectId = useRef(`grass_${Math.random().toFixed(5)}`);
+  // Grass dimensions for AABB collision
+  const grassSize = new THREE.Vector3(50, 1, 100); // Based on boxGeometry args
+  const grassPosition = new THREE.Vector3(0, -0.6, -20); // Matches the mesh position
 
   useEffect(() => {
     setMessage('Scenario: Pedestrian Crossing. Give way to the pedestrian!');
   }, [setMessage]);
+
+  useEffect(() => {
+    // Register grass with PhysicsSystem
+    const grassPhysicsObject: PhysicsObject = {
+        id: grassPhysicsObjectId.current,
+        position: grassPosition,
+        quaternion: new THREE.Quaternion(), // Fixed object, identity quaternion
+        size: grassSize,
+        type: 'grass',
+        onCollide: (other: PhysicsObject) => {
+            if (other.type === 'playerCar') {
+                failLevel('You drove off the road!');
+            }
+        }
+    };
+    PhysicsSystem.registerObject(grassPhysicsObject);
+
+    // Cleanup: unregister on unmount
+    return () => {
+        PhysicsSystem.unregisterObject(grassPhysicsObjectId.current);
+    };
+  }, [failLevel]); // Depend on failLevel to ensure onCollide has latest ref
 
   useFrame(() => {
     if (finished || failedRef.current) return;
@@ -34,7 +63,7 @@ export const PedestrianScenario: React.FC = () => {
     let currentPedestrianX = 0;
     let isPedestrianOnRoad = false;
     if (pedestrianRef.current) {
-        currentPedestrianX = pedestrianRef.current.translation().x;
+        currentPedestrianX = pedestrianRef.current.position.x; // Now directly from THREE.Mesh
         // Check if pedestrian is actually on the road
         isPedestrianOnRoad = (currentPedestrianX > pedestrianRoadStartX && currentPedestrianX < pedestrianRoadEndX);
     }
@@ -91,19 +120,17 @@ export const PedestrianScenario: React.FC = () => {
   return (
     <group>
        {/* Ground */}
-      <RigidBody type="fixed" colliders="cuboid" friction={1} userData={{ type: 'grass' }}>
-        <mesh position={[0, -0.6, -20]} receiveShadow>
+      <mesh position={grassPosition} receiveShadow>
             <boxGeometry args={[50, 1, 100]} />
             <meshStandardMaterial color="#81c784" />
-        </mesh>
-      </RigidBody>
+      </mesh>
 
       <StraightRoad position={[0, 0, 0]} length={20} />
       <StraightRoad position={[0, 0, -20]} length={20} />
       <StraightRoad position={[0, 0, -40]} length={20} />
 
       {/* Pedestrian crossing the road */}
-      {React.createElement(Pedestrian as any, { ref: pedestrianRef, startPos: [-5, 0.2, -10], endPos: [12.5, 0.2, -10], speed: 1.5, delay: 1 })}
+      {React.createElement(Pedestrian as any, { ref: pedestrianRef, startPos: [-12.5, 0.2, -20], endPos: [12.5, 0.2, -20], speed: 1.5, delay: 1 })}
       
       {/* Crossing Markings (Zebra Crossing) */}
       {Array.from({ length: 10 }).map((_, i) => (

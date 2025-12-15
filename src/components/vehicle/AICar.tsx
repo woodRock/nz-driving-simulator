@@ -1,7 +1,7 @@
-import React, { useRef, useMemo, useState, useEffect, forwardRef, useImperativeHandle } from 'react'; // Import forwardRef and useImperativeHandle
+import React, { useRef, useMemo, useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { RigidBody, RapierRigidBody, CuboidCollider } from '@react-three/rapier';
 import * as THREE from 'three';
+import { type PhysicsObject, PhysicsSystem } from '../../physics/PhysicsSystem'; // Import PhysicsSystem
 
 interface AICarProps {
     startPos: [number, number, number];
@@ -11,11 +11,12 @@ interface AICarProps {
     color?: string;
     indicatingLeft?: boolean;
     indicatingRight?: boolean;
-    rotation?: [number, number, number]; // New prop for fixed rotation
+    rotation?: [number, number, number];
 }
 
-// Wrap the component with forwardRef
-export const AICar = forwardRef<RapierRigidBody, AICarProps>(({ // Specify types for forwardRef
+// Now AICar is purely a visual component, it manages its own movement and reports its position.
+// It no longer directly interacts with a physics engine's RigidBody.
+export const AICar = React.memo(forwardRef<THREE.Group, AICarProps>(({
     startPos,
     endPos,
     speed = 5,
@@ -23,91 +24,116 @@ export const AICar = forwardRef<RapierRigidBody, AICarProps>(({ // Specify types
     color = 'red',
     indicatingLeft = false,
     indicatingRight = false,
-    rotation: initialRotation = [0, 0, 0] // New prop, default to [0,0,0]
-}, ref) => { // 'ref' is now passed as the second argument
-    const rigidBody = useRef<RapierRigidBody>(null);
-    const meshGroup = useRef<THREE.Group>(null); // Ref for the visual mesh group
-    const nextPos = useMemo(() => new THREE.Vector3(), []);
+    rotation: initialRotation = [0, 0, 0]
+}, ref) => {
+    // The innerRef now refers to the main THREE.Group of the visual car model.
+    const innerRef = useRef<THREE.Group>(null);
+    useImperativeHandle(ref, () => innerRef.current!);
 
-    // Expose the internal rigidBody ref via the forwarded ref
-    useImperativeHandle(ref, () => rigidBody.current!);
-
-    // Indicator blinking state
     const [blink, setBlink] = useState(false);
-    useEffect(() => {
-        const interval = setInterval(() => {
-            setBlink((b) => !b);
-        }, 400); // Blink every 400ms
-        return () => clearInterval(interval);
-    }, []);
+    
+    const timeElapsed = useRef(0);
+    const isDelaying = useRef(true);
+    const delayTimer = useRef(0);
 
-    const { start, end, rotationQuaternion, totalDistance } = useMemo(() => { // Renamed for clarity
+    const { startVec, endVec, totalTime, rotationQuaternion } = useMemo(() => {
         const s = new THREE.Vector3(...startPos);
         const e = new THREE.Vector3(...endPos);
         const dist = s.distanceTo(e);
         
-        // Convert initialRotation (Euler) to Quaternion
+        const calculatedTotalTime = dist / speed;
+
         const rotQuat = new THREE.Quaternion().setFromEuler(new THREE.Euler(...initialRotation));
+        
+        return { startVec: s, endVec: e, totalTime: calculatedTotalTime, rotationQuaternion: rotQuat };
+    }, [startPos[0], startPos[1], startPos[2], endPos[0], endPos[1], endPos[2], speed, initialRotation[0]]);
 
-        return { start: s, end: e, rotationQuaternion: rotQuat, totalDistance: dist };
-    }, [startPos[0], startPos[1], startPos[2], endPos[0], endPos[1], endPos[2], initialRotation[0], initialRotation[1], initialRotation[2]]);
+    useEffect(() => {
+        const interval = setInterval(() => setBlink((b) => !b), 400); 
+        return () => clearInterval(interval);
+    }, []);
 
-    useFrame((state) => {
-        if (!rigidBody.current || !meshGroup.current || totalDistance === 0) return;
+    // Unique ID for physics system registration
+    const physicsObjectId = useRef(`aiCar_${Math.random().toFixed(5)}`);
+    // Car dimensions for AABB collision
+    const carSize = new THREE.Vector3(2, 1, 4); // Based on main car body boxGeometry args
 
-        const now = state.clock.getElapsedTime();
+    useEffect(() => {
+        if (!innerRef.current) return;
 
-        if (now < delay) {
-            rigidBody.current.setNextKinematicTranslation(start);
-            rigidBody.current.setNextKinematicRotation(rotationQuaternion); // Set initial rotation
-            meshGroup.current.position.copy(start); // Directly update mesh position during delay
-            meshGroup.current.quaternion.copy(rotationQuaternion); // Directly update mesh rotation during delay
+        // Register AI car with PhysicsSystem
+        const aiCarPhysicsObject: PhysicsObject = {
+            id: physicsObjectId.current,
+            position: innerRef.current.position,
+            quaternion: innerRef.current.quaternion,
+            size: carSize,
+            type: 'aiCar',
+            onCollide: (other: PhysicsObject) => {
+                // AI cars don't typically fail the scenario, but we can log collisions
+                // console.log(`AICar collided with ${other.type}`);
+            }
+        };
+        PhysicsSystem.registerObject(aiCarPhysicsObject);
+
+        // Cleanup: unregister on unmount
+        return () => {
+            PhysicsSystem.unregisterObject(physicsObjectId.current);
+        };
+    }, []); // Empty dependency array means this runs once on mount and once on unmount
+
+    useFrame((_, delta) => {
+        if (!innerRef.current) return;
+
+        // --- HANDLE DELAY ---
+        if (isDelaying.current) {
+            delayTimer.current += delta;
+            if (delayTimer.current >= delay) {
+                isDelaying.current = false;
+            }
+            // Hold at start position
+            innerRef.current.position.copy(startVec);
+            innerRef.current.quaternion.copy(rotationQuaternion);
             return;
         }
 
-        const distTraveled = (now - delay) * speed;
-        // Using modulo to make it loop back and forth
-        const alpha = (distTraveled % totalDistance) / totalDistance;
+        timeElapsed.current += delta;
+        let alpha = Math.min(1, timeElapsed.current / totalTime);
 
-        nextPos.lerpVectors(start, end, alpha);
+        // --- HANDLE LOOP ---
+        if (alpha >= 1) {
+            timeElapsed.current = 0; // Reset for loop
+            alpha = 0; // Reset alpha to start
+        }
+
+        // --- MOVE ---
+        const nextPosition = new THREE.Vector3().lerpVectors(startVec, endVec, alpha);
         
-        rigidBody.current.setNextKinematicTranslation(nextPos);
-        rigidBody.current.setNextKinematicRotation(rotationQuaternion); // Maintain overall fixed rotation
+        // Manually update visual model's position and rotation
+        innerRef.current.position.copy(nextPosition);
+        innerRef.current.quaternion.copy(rotationQuaternion);
 
-        meshGroup.current.position.copy(nextPos); // Directly update mesh position for smooth movement
-        meshGroup.current.quaternion.copy(rotationQuaternion); // Keep mesh group in sync
-
-        // --- DEBUGGING OUTPUT ---
-        console.log(`
-            AICar Debug:
-            start: (${start.x.toFixed(2)}, ${start.y.toFixed(2)}, ${start.z.toFixed(2)})
-            end: (${end.x.toFixed(2)}, ${end.y.toFixed(2)}, ${end.z.toFixed(2)})
-            nextPos: (${nextPos.x.toFixed(2)}, ${nextPos.y.toFixed(2)}, ${nextPos.z.toFixed(2)})
-            rigidBody.translation: (${rigidBody.current.translation().x.toFixed(2)}, ${rigidBody.current.translation().y.toFixed(2)}, ${rigidBody.current.translation().z.toFixed(2)})
-            meshGroup.position: (${meshGroup.current.position.x.toFixed(2)}, ${meshGroup.current.position.y.toFixed(2)}, ${meshGroup.current.position.z.toFixed(2)})
-        `);
-        // --- END DEBUGGING OUTPUT ---
+        // Manually update the PhysicsSystem object's position and quaternion
+        const physicsObject = PhysicsSystem.getObject(physicsObjectId.current);
+        if (physicsObject) {
+            physicsObject.position.copy(innerRef.current.position);
+            physicsObject.quaternion.copy(innerRef.current.quaternion);
+        }
     });
 
     return (
-        <RigidBody
-            ref={rigidBody}
-            type="kinematicPosition"
-            position={start.toArray()} // RE-ADDED: Initial position for the RigidBody
-            quaternion={rotationQuaternion} // Initial rotation for the RigidBody
-            colliders={false} // Use CuboidCollider for precise collision
-            userData={{ type: 'car' }} // For collision detection
+        <group 
+            ref={innerRef}
+            position={[startVec.x, startVec.y, startVec.z]} 
+            rotation={initialRotation}
+            userData={{ type: 'aiCar' }} // Custom user data for identification
         >
-            <CuboidCollider args={[1, 0.5, 2]} position={[0, 0.5, 0]} />
+            {/* The visual model of the car */}
+            <mesh position={[0, 0.5, 0]} castShadow>
+                <boxGeometry args={[2, 1, 4]} />
+                <meshStandardMaterial color={color} />
+            </mesh>
 
-            <group ref={meshGroup}>
-                {/* Car Body */}
-                <mesh position={[0, 0.5, 0]} castShadow>
-                    <boxGeometry args={[2, 1, 4]} />
-                    <meshStandardMaterial color={color} />
-                </mesh>
-
-                {/* Wheels */}
+            <group>
                 <mesh position={[-1.1, 0.25, 1.2]} rotation={[0, 0, Math.PI / 2]}>
                     <cylinderGeometry args={[0.35, 0.35, 0.4, 16]} />
                     <meshStandardMaterial color="black" />
@@ -124,15 +150,14 @@ export const AICar = forwardRef<RapierRigidBody, AICarProps>(({ // Specify types
                     <cylinderGeometry args={[0.35, 0.35, 0.4, 16]} />
                     <meshStandardMaterial color="black" />
                 </mesh>
+            </group>
 
-                {/* Windshield */}
-                <mesh position={[0, 0.9, -0.5]}>
-                    <boxGeometry args={[1.8, 0.6, 1.5]} />
-                    <meshStandardMaterial color="#87CEEB" transparent opacity={0.7} />
-                </mesh>
+            <mesh position={[0, 0.9, -0.5]}>
+                <boxGeometry args={[1.8, 0.6, 1.5]} />
+                <meshStandardMaterial color="#87CEEB" transparent opacity={0.7} />
+            </mesh>
 
-                {/* Indicators */}
-                {/* Front Left */}
+            <group>
                 <mesh position={[-0.9, 0.5, -2.05]}>
                     <boxGeometry args={[0.4, 0.2, 0.1]} />
                     <meshStandardMaterial
@@ -141,7 +166,6 @@ export const AICar = forwardRef<RapierRigidBody, AICarProps>(({ // Specify types
                         emissiveIntensity={2}
                     />
                 </mesh>
-                {/* Rear Left */}
                 <mesh position={[-0.9, 0.5, 2.05]}>
                     <boxGeometry args={[0.4, 0.2, 0.1]} />
                     <meshStandardMaterial
@@ -150,8 +174,6 @@ export const AICar = forwardRef<RapierRigidBody, AICarProps>(({ // Specify types
                         emissiveIntensity={2}
                     />
                 </mesh>
-
-                {/* Front Right */}
                 <mesh position={[0.9, 0.5, -2.05]}>
                     <boxGeometry args={[0.4, 0.2, 0.1]} />
                     <meshStandardMaterial
@@ -160,7 +182,6 @@ export const AICar = forwardRef<RapierRigidBody, AICarProps>(({ // Specify types
                         emissiveIntensity={2}
                     />
                 </mesh>
-                {/* Rear Right */}
                 <mesh position={[0.9, 0.5, 2.05]}>
                     <boxGeometry args={[0.4, 0.2, 0.1]} />
                     <meshStandardMaterial
@@ -170,6 +191,6 @@ export const AICar = forwardRef<RapierRigidBody, AICarProps>(({ // Specify types
                     />
                 </mesh>
             </group>
-        </RigidBody>
+        </group>
     );
-});
+}));

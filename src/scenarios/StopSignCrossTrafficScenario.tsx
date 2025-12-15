@@ -4,20 +4,20 @@ import { StraightRoad } from '../components/world/StraightRoad';
 import { LargeIntersection } from '../components/world/LargeIntersection';
 import { StopSign } from '../components/world/StopSign';
 import { Car } from '../components/vehicle/Car';
+import { AICar } from '../components/vehicle/AICar'; // Import AICar
 import { useGameStore } from '../store/gameStore';
 import * as THREE from 'three';
 import { type PhysicsObject, PhysicsSystem } from '../physics/PhysicsSystem';
 
-export const StopSignScenario: React.FC = () => {
-  // 1. Only subscribe to stable actions. 
-  // DO NOT subscribe to telemetry here.
+export const StopSignCrossTrafficScenario: React.FC = () => {
   const setMessage = useGameStore((state) => state.setMessage);
   const failLevel = useGameStore((state) => state.failLevel);
   const passLevel = useGameStore((state) => state.passLevel);
 
   const stoppedRef = useRef(false);
-  // We use a Ref to lock the logic immediately without waiting for a re-render
   const finishedRef = useRef(false); 
+
+  const aiCarRef = useRef<THREE.Group>(null); // Ref for the moving AICar
 
   // Unique ID for physics system registration for the grass
   const grassPhysicsObjectId = useRef(`grass_${Math.random().toFixed(5)}`);
@@ -26,7 +26,7 @@ export const StopSignScenario: React.FC = () => {
   const grassPosition = new THREE.Vector3(0, -0.6, -20); // Matches the mesh position
 
   useEffect(() => {
-    setMessage('Scenario: Stop Sign. Come to a complete stop at the line before crossing.');
+    setMessage('Scenario: Stop Sign with Cross Traffic. Come to a complete stop and give way to cross traffic before proceeding.');
   }, [setMessage]);
 
   useEffect(() => {
@@ -49,45 +49,75 @@ export const StopSignScenario: React.FC = () => {
     return () => {
         PhysicsSystem.unregisterObject(grassPhysicsObjectId.current);
     };
-  }, [failLevel]); // Depend on failLevel to ensure onCollide has latest ref
+  }, [failLevel]);
 
   useFrame(() => {
-    // Logic gate: stop processing if level is done
     if (finishedRef.current) return;
 
-    // 2. FIX: Access telemetry directly from the store state (Transient update)
-    // This reads the value without forcing a component re-render.
     const telemetry = useGameStore.getState().telemetry;
-
-    // Safety check in case telemetry isn't initialized yet
     if (!telemetry || !telemetry.position) return;
-
     const { position, speed } = telemetry;
     const z = position.z;
+    const x = position.x;
+
+    // --- 1. TRACK AI CAR ---
+    let aiCarX = 100; // Default far away
+    let aiCarZ = -20; // Default intersection Z
+    let distToHazard = 100; // Default safe
+    let isAICarInIntersectionArea = false; 
+
+    if (aiCarRef.current) {
+        aiCarX = aiCarRef.current.position.x; 
+        aiCarZ = aiCarRef.current.position.z;
+        
+        distToHazard = Math.sqrt(
+            Math.pow(x - aiCarX, 2) + 
+            Math.pow(z - aiCarZ, 2)
+        );
+
+        // AI car moves from X = -30 to X = 30 across the intersection
+        if (aiCarX < 20 && aiCarX > -20) { 
+            isAICarInIntersectionArea = true;
+        }
+    }
 
     // --- LOGIC ---
 
     // 1. Detect Stop in Zone (Approaching line)
-    // Zone: -5 to -19 (Line is approx -16 to -20)
-    if (z < -5 && z > -19) {
-      // Speed check: slightly higher tolerance helps with floating point jitter
+    // Stop Line is around Z = -14
+    if (z < -10 && z > -15) { // Zone slightly before the intersection
       if (speed < 0.1) {
         if (!stoppedRef.current) {
           stoppedRef.current = true;
-          // We can call actions here because they are bound functions
-          setMessage('Stopped. Safe to proceed.');
+          setMessage('Stopped. Wait for cross traffic.');
         }
       }
     }
 
-    // 2. Validate at Exit (-30)
-    if (z < -30) {
-      finishedRef.current = true; // Lock the loop immediately
+    // 2. Intersection Logic (Player entering intersection past stop line)
+    if (z < -16) { // Player has crossed the stop line
+        // FAIL CONDITION A: Ran Stop Sign
+        if (!stoppedRef.current) {
+            failLevel('FAILED: You ran the Stop Sign!');
+            finishedRef.current = true;
+            return;
+        }
 
+        // FAIL CONDITION B: Dangerous Pull Out (didn't give way)
+        if (isAICarInIntersectionArea && distToHazard < 15) { // Threshold adjusted
+             failLevel('FAILED: You pulled out in front of cross traffic!'); 
+             finishedRef.current = true;
+             return;
+        }
+    }
+
+    // 3. Success Condition (Player safely crossed intersection)
+    if (z < -30) {
+      finishedRef.current = true; 
       if (stoppedRef.current) {
         passLevel();
       } else {
-        failLevel('FAILED: You ran the Stop Sign!');
+        failLevel('FAILED: Did not stop at Stop Sign or drove off road!');
       }
     }
   });
@@ -111,6 +141,17 @@ export const StopSignScenario: React.FC = () => {
 
       {/* Stop Sign */}
       <StopSign position={[-5.5, 0, -14]} rotation={[0, Math.PI, 0]} />
+
+      {/* Moving AI Traffic (from left to right) */}
+      <AICar 
+        ref={aiCarRef} 
+        startPos={[-30, 0.2, -22.5]} // Starts left of intersection
+        endPos={[30, 0.2, -22.5]}   // Ends right of intersection
+        speed={15} 
+        delay={0} 
+        color="red" 
+        rotation={[0, 3 * Math.PI / 2, 0]} // Faces +X, moving right
+      />
 
       {/* Player Car */}
       <Car position={[-2.5, 1, 8]} />

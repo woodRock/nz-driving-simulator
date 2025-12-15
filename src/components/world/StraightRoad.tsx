@@ -1,5 +1,6 @@
-import React from 'react';
-import { RigidBody } from '@react-three/rapier';
+import React, { useRef, useEffect } from 'react';
+import * as THREE from 'three';
+import { type PhysicsObject, PhysicsSystem } from '../../physics/PhysicsSystem';
 
 interface StraightRoadProps {
   position?: [number, number, number];
@@ -12,15 +13,45 @@ export const StraightRoad: React.FC<StraightRoadProps> = ({
   rotation = [0, 0, 0],
   length = 10 
 }) => {
+  const roadRef = useRef<THREE.Group>(null);
+
+  // Unique ID for physics system registration
+  const physicsObjectId = useRef(`straightRoad_${Math.random().toFixed(5)}`);
+  // Size for AABB collision: based on planeGeometry args (10 width, length depth)
+  const roadSize = new THREE.Vector3(10, 0.1, length); // Assuming a small thickness for Y-axis
+
+  useEffect(() => {
+    if (!roadRef.current) return;
+
+    const initialQuaternion = new THREE.Quaternion().setFromEuler(new THREE.Euler(...rotation));
+
+    // Register road with PhysicsSystem
+    const roadPhysicsObject: PhysicsObject = {
+        id: physicsObjectId.current,
+        position: roadRef.current.position, // Use visual group's position
+        quaternion: initialQuaternion, // Use initial quaternion
+        size: roadSize,
+        type: 'road',
+        onCollide: (other: PhysicsObject) => {
+            // Can be used to detect if a car drives off the road
+            // console.log(`StraightRoad collided with ${other.type}`);
+        }
+    };
+    PhysicsSystem.registerObject(roadPhysicsObject);
+
+    // Cleanup: unregister on unmount
+    return () => {
+        PhysicsSystem.unregisterObject(physicsObjectId.current);
+    };
+  }, [position, rotation, length]); // Depend on props for re-registration if they change
+
   return (
-    <group position={position} rotation={rotation}>
-      <RigidBody type="fixed" friction={1}>
-        {/* Road Base */}
-        <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-          <planeGeometry args={[10, length]} />
-          <meshStandardMaterial color="#333333" />
-        </mesh>
-      </RigidBody>
+    <group ref={roadRef} position={position} rotation={rotation} userData={{ type: 'road' }}>
+      {/* Road Base */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+        <planeGeometry args={[10, length]} />
+        <meshStandardMaterial color="#333333" />
+      </mesh>
 
       {/* Center Line (Dashed) */}
       {Array.from({ length: Math.floor(length / 2) }).map((_, i) => (

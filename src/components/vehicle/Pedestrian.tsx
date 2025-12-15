@@ -1,7 +1,7 @@
-import React, { useRef, useMemo } from 'react';
+import React, { useRef, useMemo, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { RigidBody, RapierRigidBody } from '@react-three/rapier';
 import * as THREE from 'three';
+import { type PhysicsObject, PhysicsSystem } from '../../physics/PhysicsSystem';
 
 interface PedestrianProps {
     startPos: [number, number, number];
@@ -18,7 +18,6 @@ export const Pedestrian: React.FC<PedestrianProps> = ({
     delay = 0,
     color = '#8E44AD' // Purple color
 }) => {
-    const rigidBody = useRef<RapierRigidBody>(null);
     const meshGroup = useRef<THREE.Mesh>(null); // Ref for the visual mesh
     const nextPos = useMemo(() => new THREE.Vector3(), []);
 
@@ -29,13 +28,39 @@ export const Pedestrian: React.FC<PedestrianProps> = ({
         return { start: s, end: e, totalDistance: dist };
     }, [startPos[0], startPos[1], startPos[2], endPos[0], endPos[1], endPos[2]]);
 
+    // Unique ID for physics system registration
+    const physicsObjectId = useRef(`pedestrian_${Math.random().toFixed(5)}`);
+    // Pedestrian dimensions for AABB collision
+    const pedestrianSize = new THREE.Vector3(0.5, 1.8, 0.5); // Based on boxGeometry args
+
+    useEffect(() => {
+        if (!meshGroup.current) return;
+
+        // Register pedestrian with PhysicsSystem
+        const pedestrianPhysicsObject: PhysicsObject = {
+            id: physicsObjectId.current,
+            position: meshGroup.current.position,
+            quaternion: new THREE.Quaternion(), // Pedestrians don't typically rotate
+            size: pedestrianSize,
+            type: 'pedestrian',
+            onCollide: (other: PhysicsObject) => {
+                console.log(`Pedestrian collided with ${other.type}`);
+            }
+        };
+        PhysicsSystem.registerObject(pedestrianPhysicsObject);
+
+        // Cleanup: unregister on unmount
+        return () => {
+            PhysicsSystem.unregisterObject(physicsObjectId.current);
+        };
+    }, []); // Empty dependency array means this runs once on mount and once on unmount
+
     useFrame((state) => {
-        if (!rigidBody.current || !meshGroup.current || totalDistance === 0) return;
+        if (!meshGroup.current || totalDistance === 0) return;
 
         const now = state.clock.getElapsedTime();
 
         if (now < delay) {
-            rigidBody.current.setNextKinematicTranslation(start);
             meshGroup.current.position.copy(start); // Directly update mesh position during delay
             return;
         }
@@ -44,22 +69,20 @@ export const Pedestrian: React.FC<PedestrianProps> = ({
         const alpha = (distTraveled % totalDistance) / totalDistance;
 
         nextPos.lerpVectors(start, end, alpha);
-        rigidBody.current.setNextKinematicTranslation(nextPos);
         meshGroup.current.position.copy(nextPos); // Directly update mesh position for smooth movement
+
+        // Manually update the PhysicsSystem object's position
+        const physicsObject = PhysicsSystem.getObject(physicsObjectId.current);
+        if (physicsObject) {
+            physicsObject.position.copy(meshGroup.current.position);
+        }
     });
 
     return (
-        <RigidBody
-            ref={rigidBody}
-            type="kinematicPosition"
-            position={startPos}
-            colliders="cuboid"
-            userData={{ type: 'pedestrian' }} // For collision detection
-        >
-            <mesh ref={meshGroup} position={[0, 0.9, 0]} castShadow> {/* Pedestrian model is ~1.8m tall, so center is 0.9 */}
-                <boxGeometry args={[0.5, 1.8, 0.5]} /> {/* Pedestrian-like dimensions */}
-                <meshStandardMaterial color={color} />
-            </mesh>
-        </RigidBody>
+        <mesh ref={meshGroup} position={startPos} castShadow userData={{ type: 'pedestrian' }}> 
+            {/* Pedestrian model is ~1.8m tall, so center is 0.9 */}
+            <boxGeometry args={[0.5, 1.8, 0.5]} /> {/* Pedestrian-like dimensions */}
+            <meshStandardMaterial color={color} />
+        </mesh>
     );
 };

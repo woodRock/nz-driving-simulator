@@ -7,14 +7,14 @@ import { Car } from '../components/vehicle/Car';
 import { StationaryAICar } from '../components/vehicle/StationaryAICar';
 
 import { useGameStore } from '../store/gameStore';
-import { RigidBody } from '@react-three/rapier';
+import * as THREE from 'three';
+import { PhysicsSystem, type PhysicsObject } from '../physics/PhysicsSystem';
 
 // Define AICar paths relative to the road layout
 // Road is 10 units wide. Center is X=0 for vertical, Z=-10 for horizontal.
 // Lanes are approx. 2.5 units from center. So:
 // Horizontal road (Z=-10): lanes at Z=-7.5 and Z=-12.5
 // Vertical road (X=0): lanes at X=-2.5 and X=2.5
-
 
 
 // Removed AI_CAR_3 to reduce memory footprint
@@ -24,9 +24,37 @@ export const GiveWayScenario: React.FC = () => {
   const [finished, setFinished] = useState(false);
   const finishedRef = useRef(false);
 
+  // Unique ID for physics system registration for the grass
+  const physicsObjectId = useRef(`grass_${Math.random().toFixed(5)}`);
+  // Grass dimensions for AABB collision
+  const grassSize = new THREE.Vector3(100, 1, 100); // Based on boxGeometry args
+  const grassPosition = new THREE.Vector3(0, -0.6, -10); // Matches the mesh position
+
   useEffect(() => {
     setMessage('Scenario: Crossroads. Go Straight. Give Way to crossing traffic.');
   }, [setMessage]);
+
+  useEffect(() => {
+    // Register grass with PhysicsSystem
+    const grassPhysicsObject: PhysicsObject = {
+        id: physicsObjectId.current,
+        position: grassPosition,
+        quaternion: new THREE.Quaternion(), // Fixed object, identity quaternion
+        size: grassSize,
+        type: 'grass',
+        onCollide: (other: PhysicsObject) => {
+            if (other.type === 'playerCar') {
+                failLevel('You drove off the road!');
+            }
+        }
+    };
+    PhysicsSystem.registerObject(grassPhysicsObject);
+
+    // Cleanup: unregister on unmount
+    return () => {
+        PhysicsSystem.unregisterObject(physicsObjectId.current);
+    };
+  }, [failLevel]); // Depend on failLevel to ensure onCollide has latest ref
 
   useFrame(() => {
     if (finished || finishedRef.current) return;
@@ -51,12 +79,11 @@ export const GiveWayScenario: React.FC = () => {
 
   return (
     <group>
-      <RigidBody type="fixed" colliders="cuboid" friction={1} userData={{ type: 'grass' }}>
-        <mesh position={[0, -0.6, -10]} receiveShadow>
+      {/* Grass */}
+      <mesh position={grassPosition} receiveShadow>
             <boxGeometry args={[100, 1, 100]} />
             <meshStandardMaterial color="#558b2f" />
-        </mesh>
-      </RigidBody>
+      </mesh>
 
       {/* Crossroad */}
       <Intersection position={[0, 0, -10]} />
