@@ -7,19 +7,24 @@ interface PedestrianProps {
     startPos: [number, number, number];
     endPos: [number, number, number];
     speed?: number;
-    delay?: number;
+    // delay?: number; // Removed internal delay handling
     color?: string;
+    active?: boolean; // New prop
 }
 
 export const Pedestrian: React.FC<PedestrianProps> = ({
     startPos,
     endPos,
     speed = 1.5, // Slower speed for pedestrian
-    delay = 0,
-    color = '#8E44AD' // Purple color
+    // delay = 0, // Removed internal delay handling
+    color = '#8E44AD', // Purple color
+    active = false // Default to not active
 }) => {
     const meshGroup = useRef<THREE.Mesh>(null); // Ref for the visual mesh
     const nextPos = useMemo(() => new THREE.Vector3(), []);
+
+    // Time when pedestrian was activated, to ensure movement starts correctly
+    const activationTime = useRef<number | null>(null);
 
     const { start, end, totalDistance } = useMemo(() => {
         const s = new THREE.Vector3(...startPos);
@@ -44,7 +49,7 @@ export const Pedestrian: React.FC<PedestrianProps> = ({
             size: pedestrianSize,
             type: 'pedestrian',
             onCollide: (other: PhysicsObject) => {
-                console.log(`Pedestrian collided with ${other.type}`);
+                // console.log(`Pedestrian collided with ${other.type}`); // Removed debug log
             }
         };
         PhysicsSystem.registerObject(pedestrianPhysicsObject);
@@ -58,15 +63,24 @@ export const Pedestrian: React.FC<PedestrianProps> = ({
     useFrame((state) => {
         if (!meshGroup.current || totalDistance === 0) return;
 
-        const now = state.clock.getElapsedTime();
-
-        if (now < delay) {
-            meshGroup.current.position.copy(start); // Directly update mesh position during delay
+        // Only move if active prop is true
+        if (!active) {
+            meshGroup.current.position.copy(start); // Keep at start position if not active
+            activationTime.current = null; // Reset activation time
             return;
         }
 
-        const distTraveled = (now - delay) * speed;
-        const alpha = (distTraveled % totalDistance) / totalDistance;
+        // If just activated, record the current time
+        if (activationTime.current === null) {
+            activationTime.current = state.clock.getElapsedTime();
+        }
+
+        const now = state.clock.getElapsedTime();
+        const elapsedTimeSinceActivation = now - activationTime.current;
+
+        const distTraveled = elapsedTimeSinceActivation * speed;
+        // If pedestrian goes past end, reset to start or stop
+        const alpha = Math.min(1, distTraveled / totalDistance); // Clamp alpha at 1 to stop at endPos
 
         nextPos.lerpVectors(start, end, alpha);
         meshGroup.current.position.copy(nextPos); // Directly update mesh position for smooth movement

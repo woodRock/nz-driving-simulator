@@ -28,7 +28,7 @@ export const TIntersectionGiveWayScenario: React.FC = () => {
   const grassPosition = new THREE.Vector3(0, -0.6, -10); // Matches the mesh position
 
   useEffect(() => {
-    setMessage('Scenario: T-Intersection Give Way. Give Way to traffic from your right. Go Straight or Turn Left.');
+    setMessage('Scenario: T-Intersection Give Way. Give Way to traffic from your right. Turn Left.');
   }, [setMessage]);
 
   useEffect(() => {

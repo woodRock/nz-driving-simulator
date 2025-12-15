@@ -85,8 +85,8 @@ export const StopSignCrossTrafficScenario: React.FC = () => {
 
     // 1. Detect Stop in Zone (Approaching line)
     // Stop Line is around Z = -14
-    if (z < -10 && z > -15) { // Zone slightly before the intersection
-      if (speed < 0.1) {
+    if (z < -5 && z > -15) { // Wider zone for stop detection
+      if (speed < 0.2) { // More lenient speed threshold
         if (!stoppedRef.current) {
           stoppedRef.current = true;
           setMessage('Stopped. Wait for cross traffic.');

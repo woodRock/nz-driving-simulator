@@ -14,6 +14,7 @@ export const PedestrianScenario: React.FC = () => {
   const [hasStopped, setHasStopped] = useState(false); // New state for stop detection
   const pedestrianCrossedRef = useRef(false); // Track if pedestrian has cleared
   const pedestrianRef = useRef<THREE.Mesh>(null); // Ref for the Pedestrian's mesh
+  const [pedestrianActive, setPedestrianActive] = useState(false); // New state to trigger pedestrian movement
 
   // Unique ID for physics system registration for the grass
   const grassPhysicsObjectId = useRef(`grass_${Math.random().toFixed(5)}`);
@@ -68,15 +69,20 @@ export const PedestrianScenario: React.FC = () => {
         isPedestrianOnRoad = (currentPedestrianX > pedestrianRoadStartX && currentPedestrianX < pedestrianRoadEndX);
     }
     
-    // We now have `isPedestrianOnRoad` which is more accurate.
+    // Trigger pedestrian movement when player enters a zone
+    if (!pedestrianActive && position.z < -5 && position.z > -15) { // Trigger zone before stop line
+        setPedestrianActive(true);
+        setMessage('Pedestrian ahead! Stop before the crossing.');
+    }
+
     const pedestrianPresent = isPedestrianOnRoad; 
 
     // console.log(`Pedestrian X: ${currentPedestrianX.toFixed(2)}, On Road: ${isPedestrianOnRoad}, Player Z: ${position.z.toFixed(2)}, Player Speed: ${playerSpeed.toFixed(2)}, hasStopped: ${hasStopped}`);
 
 
     // Stop Detection: Player must stop before playerStopLineZ if pedestrian is present
-    const playerAtStopLine = (position.z < playerStopLineZ + 2 && position.z > playerStopLineZ - 2); // A small window around the stop line
-    if (pedestrianPresent && !hasStopped && playerAtStopLine && playerSpeed < 0.5) {
+    const playerAtStopLine = (position.z < playerStopLineZ + 3 && position.z > playerStopLineZ - 3); // Wider window around the stop line
+    if (pedestrianActive && !hasStopped && playerAtStopLine && playerSpeed < 0.8) { // Pedestrian needs to be active, more lenient speed
         console.log("STOP DETECTED for Pedestrian! Player Z:", position.z.toFixed(2), "Speed:", playerSpeed.toFixed(2));
         setHasStopped(true);
     }
@@ -89,8 +95,8 @@ export const PedestrianScenario: React.FC = () => {
         }
     }
 
-    // Fail if player crosses stop line without stopping while pedestrian is present
-    if (pedestrianPresent && !hasStopped && position.z < playerStopLineZ - 2) { // Player passed stop line without stopping
+    // Fail if player crosses stop line without stopping while pedestrian is active
+    if (pedestrianActive && !hasStopped && position.z < playerStopLineZ - 2) { // Player passed stop line without stopping
         failLevel('You did not stop for the pedestrian!');
         failedRef.current = true;
         setFinished(true);
@@ -99,19 +105,27 @@ export const PedestrianScenario: React.FC = () => {
     
     // Pass condition: Player successfully passed the pedestrian crossing zone
     if (position.z < pedestrianCrossingZ - 10) { // Player is well past the crossing
-        if (pedestrianPresent && !hasStopped) { // If pedestrian was present and player didn't stop
-            failLevel('You did not stop for the pedestrian!');
-            failedRef.current = true;
-            setFinished(true);
-            return;
-        }
-        if (!pedestrianCrossedRef.current && pedestrianPresent) { // If pedestrian was present and didn't cross
-             failLevel('You drove before the pedestrian safely crossed!');
-             failedRef.current = true;
-             setFinished(true);
-             return;
-        }
+        console.log('--- Pass Condition Check ---');
+        console.log('pedestrianActive:', pedestrianActive);
+        console.log('hasStopped:', hasStopped);
+        console.log('pedestrianCrossedRef.current:', pedestrianCrossedRef.current);
+        console.log('Player Z:', position.z.toFixed(2));
 
+        if (pedestrianActive) { // Only evaluate these if the pedestrian was activated
+            if (!hasStopped) { 
+                failLevel('You did not stop for the pedestrian!');
+                failedRef.current = true;
+                setFinished(true);
+                return;
+            }
+            if (!pedestrianCrossedRef.current) { 
+                 failLevel('You drove before the pedestrian safely crossed!');
+                 failedRef.current = true;
+                 setFinished(true);
+                 return;
+            }
+        }
+        // If pedestrian was never active, or all conditions above are met for active pedestrian
         passLevel();
         setFinished(true);
     }
@@ -130,7 +144,13 @@ export const PedestrianScenario: React.FC = () => {
       <StraightRoad position={[0, 0, -40]} length={20} />
 
       {/* Pedestrian crossing the road */}
-      {React.createElement(Pedestrian as any, { ref: pedestrianRef, startPos: [-12.5, 0.2, -20], endPos: [12.5, 0.2, -20], speed: 1.5, delay: 1 })}
+      {React.createElement(Pedestrian as any, { 
+        ref: pedestrianRef, 
+        startPos: [-6, 0.2, -20], // Pedestrian starts just off the road
+        endPos: [6, 0.2, -20], // Pedestrian crosses to just off the other side
+        speed: 1.5, 
+        active: pedestrianActive // Pass the active state
+      })}
       
       {/* Crossing Markings (Zebra Crossing) */}
       {Array.from({ length: 10 }).map((_, i) => (

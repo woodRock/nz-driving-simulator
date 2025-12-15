@@ -90,7 +90,7 @@ export const GiveWayRightToLeftScenario: React.FC = () => {
     if (z < -1) { 
         // FAIL CONDITION A: Dangerous Cut-off
         // If player moves into intersection when AI car is a hazard
-        if (isAICarInIntersectionArea && distToHazard < 15) { // Adjusted threshold
+        if (isAICarInIntersectionArea && distToHazard < 8) { // Adjusted threshold for even more leeway
              failLevel('You entered the intersection without giving way to cross traffic!'); 
              finishedRef.current = true;
              setFinished(true);
