@@ -4,8 +4,9 @@ import { Roundabout } from '../components/world/Roundabout';
 import { StraightRoad } from '../components/world/StraightRoad';
 import { Car } from '../components/vehicle/Car';
 import { RigidBody } from '@react-three/rapier';
-import { Cyclist } from '../components/vehicle/Cyclist';
+
 import { useGameStore } from '../store/gameStore';
+import { StationaryAICar } from '../components/vehicle/StationaryAICar';
 
 export const RoundaboutScenario: React.FC = () => {
    const { setMessage, telemetry, passLevel, failLevel } = useGameStore();
@@ -88,8 +89,15 @@ export const RoundaboutScenario: React.FC = () => {
       {/* West Road */}
       <StraightRoad position={[-20, 0, -20]} rotation={[0, Math.PI / 2, 0]} length={20} />
 
-
-
+      {/* Stationary AI Car: Approaching from top-left, indicating left turn (does not cross the player's path) */}
+      <StationaryAICar 
+        position={[-12.5, 0.2, -17.5]} // Corrected Y-position to 1 for placement on the ground
+        rotation={[0, 3 * Math.PI / 2, 0]} // Faces +X, towards the intersection
+        color="orange" 
+        indicatingLeft={true} // Explicitly set to not indicate left
+        indicatingRight={false} // Explicitly set to indicate right
+      />
+      
       {/* Player Car */}
       <Car position={[-2.5, 1, 9]} />
     </group>

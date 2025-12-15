@@ -64,6 +64,8 @@ export const Car: React.FC<CarProps> = ({ position = [0, 1, 0], rotation: initia
     const signedSpeed = vel.x * forwardDir.x + vel.z * forwardDir.z;
     const absSpeed = Math.abs(signedSpeed);
 
+
+
     // Update Telemetry
     updateTelemetry({
         speed: absSpeed,

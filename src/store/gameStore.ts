@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-export type ScenarioId = 't-intersection' | 'roundabout' | 'stop-sign' | 'pedestrian' | 'parking' | 'wellington';
+export type ScenarioId = 'giveway' | 't-intersection' | 'roundabout' | 'stop-sign' | 'pedestrian' | 'parking' | 'wellington' | 't-intersection-right';
 
 export interface ScenarioDef {
     id: ScenarioId;
@@ -9,7 +9,9 @@ export interface ScenarioDef {
 }
 
 export const SCENARIOS: ScenarioDef[] = [
+    { id: 'giveway', title: 'Give Way', description: 'Give way to crossing traffic.' },
     { id: 't-intersection', title: 'T-Intersection', description: 'Give way to traffic. Turn Left.' },
+    { id: 't-intersection-right', title: 'T-Intersection (Right Turn)', description: 'Give way to ALL traffic. Turn Right. Watch for oncoming traffic and other turning vehicles!' },
     { id: 'roundabout', title: 'Roundabout', description: 'Take the 3rd exit (Right Turn).' },
     { id: 'pedestrian', title: 'Pedestrian Crossing', description: 'Stop for the pedestrian.' },
     { id: 'parking', title: 'Parallel Parking', description: 'Park in the green box between the cars.' },

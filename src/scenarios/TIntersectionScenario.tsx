@@ -4,10 +4,11 @@ import { StraightRoad } from '../components/world/StraightRoad';
 import { Intersection } from '../components/world/Intersection';
 import { GiveWaySign } from '../components/world/GiveWaySign';
 import { Car } from '../components/vehicle/Car';
-import { AICar } from '../components/vehicle/AICar';
+
 import { useGameStore } from '../store/gameStore';
 
 import { RigidBody } from '@react-three/rapier';
+import { StationaryAICar } from '../components/vehicle/StationaryAICar';
 
 export const TIntersectionScenario: React.FC = () => {
   const { setMessage, telemetry, passLevel, failLevel } = useGameStore();
@@ -97,8 +98,16 @@ export const TIntersectionScenario: React.FC = () => {
       <GiveWaySign position={[-5.5, 0, -1]} rotation={[0, 0, 0]} />
 
       {/* Traffic */}
-      <AICar startPos={[20, 1, -7.5]} endPos={[-20, 1, -7.5]} speed={8} delay={2} color="#e74c3c" />
-      <AICar startPos={[30, 1, -7.5]} endPos={[-20, 1, -7.5]} speed={8} delay={5} color="#8e44ad" />
+
+      {/* Stationary AI Car: Approaching from top-left, indicating right turn (crosses player's path) */}
+      <StationaryAICar 
+        position={[-7.5, 0.2, -12.5]} // Y-position set to 1 for correct placement on the ground
+        rotation={[0, 3 * Math.PI / 2, 0]} // Faces +X, towards the intersection
+        color="orange" 
+        indicatingLeft={false} // Explicitly set to not indicate left (for clarity/safety)
+        indicatingRight={true} // Explicitly set to indicate right
+      />
+
 
       {/* Player Car */}
       <Car position={[-2.5, 1, 9]} />

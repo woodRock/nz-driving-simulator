@@ -9,6 +9,8 @@ import { StopSignScenario } from './scenarios/StopSignScenario';
 import { PedestrianScenario } from './scenarios/PedestrianScenario';
 import { ParallelParkingScenario } from './scenarios/ParallelParkingScenario';
 import { UI } from './components/UI';
+import { TIntersectionRightScenario } from './scenarios/TIntersectionRightScenario';
+import { GiveWayScenario } from './scenarios/GiveWayScenario';
 
 function Scene() {
   const { currentScenario, currentLevelIndex, levelStatus } = useGameStore();
@@ -25,12 +27,14 @@ function Scene() {
       
       <Physics>
         <group key={key}>
+          {currentScenario === 'giveway' && <GiveWayScenario />}
           {currentScenario === 't-intersection' && <TIntersectionScenario />}
           {currentScenario === 'roundabout' && <RoundaboutScenario />}
           {currentScenario === 'stop-sign' && <StopSignScenario />}
           {currentScenario === 'pedestrian' && <PedestrianScenario />}
           {currentScenario === 'parking' && <ParallelParkingScenario />}
           {currentScenario === 'wellington' && <WellingtonScenario />}
+          {currentScenario === 't-intersection-right' && <TIntersectionRightScenario />}
         </group>
       </Physics>
     </>
