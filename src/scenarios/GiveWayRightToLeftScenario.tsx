@@ -81,11 +81,6 @@ export const GiveWayRightToLeftScenario: React.FC = () => {
                   isAICarInIntersectionArea = true;
               }
           }
-          // console.log('--- GiveWayRightToLeft DEBUG ---'); // Removed debug log
-          // console.log('Player Position Z:', z.toFixed(2), 'X:', x.toFixed(2)); // Removed debug log
-          // console.log('AI Car X:', aiCarX.toFixed(2), 'isAICarInIntersectionArea:', isAICarInIntersectionArea); // Removed debug log
-          // console.log('distToHazard:', distToHazard.toFixed(2)); // Removed debug log
-      
           // --- 2. PLAYER LOGIC ---
           // Player starts near the give way line, primary task is to wait for AI car
       
@@ -103,8 +98,6 @@ export const GiveWayRightToLeftScenario: React.FC = () => {
           }    // Success Condition: Player successfully went straight after AI car has passed (or is safely far away)
     if (z < -10 && x < 5 && x > -5) { // Went straight
         // Ensure AI car is far enough away if it was ever a hazard
-        console.log('--- Success Check DEBUG ---');
-        console.log('isAICarInIntersectionArea:', isAICarInIntersectionArea, 'distToHazard:', distToHazard.toFixed(2));
         if (!isAICarInIntersectionArea || distToHazard > 8) { // Use distToHazard directly
             passLevel();
             finishedRef.current = true;

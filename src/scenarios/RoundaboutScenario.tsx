@@ -22,7 +22,7 @@ export const RoundaboutScenario: React.FC = () => {
   const grassPosition = new THREE.Vector3(0, -0.6, -20); // Matches the mesh position
 
     useEffect(() => {
-      setMessage('Scenario: Roundabout. Turn Right (3rd Exit). Indicate correctly! Watch for the cyclist.');
+      setMessage('Scenario: Roundabout. Turn Right (3rd Exit). Indicate correctly!');
     }, [setMessage]);
 
     useEffect(() => {

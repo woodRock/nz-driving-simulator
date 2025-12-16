@@ -84,12 +84,6 @@ export const FourWayGiveWayScenario: React.FC = () => {
     }
 
     // --- LOGIC ---
-    console.log('--- FourWayGiveWay DEBUG ---');
-    console.log('Player Z:', z.toFixed(2), 'X:', x.toFixed(2), 'Speed:', speed.toFixed(2));
-    console.log('AI Car Z:', aiCarZ.toFixed(2), 'isAICarInIntersectionArea:', isAICarInIntersectionArea, 'distToHazard:', distToHazard.toFixed(2));
-    console.log('hasStopped:', hasStopped);
-
-
     // Stop Detection: Player must stop at give way line (Z = 0 approx)
     const playerGiveWayLineZ = 0; // Aligned with actual Give Way sign
     const playerAtStopLine = (z < playerGiveWayLineZ + 1 && z > playerGiveWayLineZ - 3); // Wider zone for stopping around the line
@@ -97,7 +91,6 @@ export const FourWayGiveWayScenario: React.FC = () => {
     if (!hasStopped && playerAtStopLine && speed < 0.5) { // Lenient speed
         setHasStopped(true);
         setMessage('Stopped. Wait for cross traffic from your right.');
-        console.log('STOP DETECTED!');
     }
 
     // Intersection Logic (Player entering intersection past give way line)

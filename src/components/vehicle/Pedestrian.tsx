@@ -1,4 +1,4 @@
-import React, { useRef, useMemo, useEffect } from 'react';
+import React, { useRef, useMemo, useEffect, forwardRef, useImperativeHandle } from 'react'; // Added forwardRef, useImperativeHandle
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { type PhysicsObject, PhysicsSystem } from '../../physics/PhysicsSystem';
@@ -12,15 +12,17 @@ interface PedestrianProps {
     active?: boolean; // New prop
 }
 
-export const Pedestrian: React.FC<PedestrianProps> = ({
+export const Pedestrian = React.memo(forwardRef<THREE.Group, PedestrianProps>(({ // Wrapped with forwardRef
     startPos,
     endPos,
     speed = 1.5, // Slower speed for pedestrian
     // delay = 0, // Removed internal delay handling
     color = '#8E44AD', // Purple color
     active = false // Default to not active
-}) => {
-    const meshGroup = useRef<THREE.Mesh>(null); // Ref for the visual mesh
+}, ref) => { // Accept ref as second argument
+    const innerRef = useRef<THREE.Group>(null); // Changed to THREE.Group
+    useImperativeHandle(ref, () => innerRef.current!); // Expose internal ref
+
     const nextPos = useMemo(() => new THREE.Vector3(), []);
 
     // Time when pedestrian was activated, to ensure movement starts correctly
@@ -39,12 +41,12 @@ export const Pedestrian: React.FC<PedestrianProps> = ({
     const pedestrianSize = new THREE.Vector3(0.5, 1.8, 0.5); // Based on boxGeometry args
 
     useEffect(() => {
-        if (!meshGroup.current) return;
+        if (!innerRef.current) return;
 
         // Register pedestrian with PhysicsSystem
         const pedestrianPhysicsObject: PhysicsObject = {
             id: physicsObjectId.current,
-            position: meshGroup.current.position,
+            position: innerRef.current.position,
             quaternion: new THREE.Quaternion(), // Pedestrians don't typically rotate
             size: pedestrianSize,
             type: 'pedestrian',
@@ -61,11 +63,11 @@ export const Pedestrian: React.FC<PedestrianProps> = ({
     }, []); // Empty dependency array means this runs once on mount and once on unmount
 
     useFrame((state) => {
-        if (!meshGroup.current || totalDistance === 0) return;
+        if (!innerRef.current || totalDistance === 0) return;
 
         // Only move if active prop is true
         if (!active) {
-            meshGroup.current.position.copy(start); // Keep at start position if not active
+            innerRef.current.position.copy(start); // Keep at start position if not active
             activationTime.current = null; // Reset activation time
             return;
         }
@@ -83,20 +85,22 @@ export const Pedestrian: React.FC<PedestrianProps> = ({
         const alpha = Math.min(1, distTraveled / totalDistance); // Clamp alpha at 1 to stop at endPos
 
         nextPos.lerpVectors(start, end, alpha);
-        meshGroup.current.position.copy(nextPos); // Directly update mesh position for smooth movement
+        innerRef.current.position.copy(nextPos); // Directly update mesh position for smooth movement
 
         // Manually update the PhysicsSystem object's position
         const physicsObject = PhysicsSystem.getObject(physicsObjectId.current);
         if (physicsObject) {
-            physicsObject.position.copy(meshGroup.current.position);
+            physicsObject.position.copy(innerRef.current.position);
         }
     });
 
     return (
-        <mesh ref={meshGroup} position={startPos} castShadow userData={{ type: 'pedestrian' }}> 
+        <group ref={innerRef} position={startPos} castShadow userData={{ type: 'pedestrian' }}> 
             {/* Pedestrian model is ~1.8m tall, so center is 0.9 */}
-            <boxGeometry args={[0.5, 1.8, 0.5]} /> {/* Pedestrian-like dimensions */}
-            <meshStandardMaterial color={color} />
-        </mesh>
+            <mesh position={[0, 1.0, 0]}>
+                <boxGeometry args={[0.5, 1.8, 0.5]} /> {/* Pedestrian-like dimensions */}
+                <meshStandardMaterial color={color} />
+            </mesh>
+        </group>
     );
-};
+}));
