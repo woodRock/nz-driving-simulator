@@ -14,8 +14,8 @@ export const StopSignScenario: React.FC = () => {
   const setMessage = useGameStore((state) => state.setMessage);
   const failLevel = useGameStore((state) => state.failLevel);
   const passLevel = useGameStore((state) => state.passLevel);
+  const setFlag = useGameStore((state) => state.setFlag);
 
-  const stoppedRef = useRef(false);
   // We use a Ref to lock the logic immediately without waiting for a re-render
   const finishedRef = useRef(false); 
 
@@ -70,12 +70,14 @@ export const StopSignScenario: React.FC = () => {
     // 1. Detect Stop in Zone (Approaching line)
     // Zone: -5 to -19 (Line is approx -16 to -20)
     if (z < -5 && z > -19) {
-      // Speed check: slightly higher tolerance helps with floating point jitter
-      if (speed < 0.1) {
-        if (!stoppedRef.current) {
-          stoppedRef.current = true;
-          // We can call actions here because they are bound functions
-          setMessage('Stopped. Safe to proceed.');
+      // Speed check: threshold matches physics snap
+      if (Math.abs(speed) < 1.1) {
+        if (!useGameStore.getState().flags['stopSignStopped']) {
+          setFlag('stopSignStopped', true);
+          
+          if (useGameStore.getState().message !== 'Stopped. Safe to proceed.') {
+              setMessage('Stopped. Safe to proceed.');
+          }
         }
       }
     }
@@ -84,7 +86,7 @@ export const StopSignScenario: React.FC = () => {
     if (z < -30) {
       finishedRef.current = true; // Lock the loop immediately
 
-      if (stoppedRef.current) {
+      if (useGameStore.getState().flags['stopSignStopped']) {
         passLevel();
       } else {
         failLevel('FAILED: You ran the Stop Sign!');

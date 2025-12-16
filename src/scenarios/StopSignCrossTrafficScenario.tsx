@@ -10,11 +10,15 @@ import * as THREE from 'three';
 import { type PhysicsObject, PhysicsSystem } from '../physics/PhysicsSystem';
 
 export const StopSignCrossTrafficScenario: React.FC = () => {
+  // const message = useGameStore((state) => state.message);
   const setMessage = useGameStore((state) => state.setMessage);
   const failLevel = useGameStore((state) => state.failLevel);
   const passLevel = useGameStore((state) => state.passLevel);
+  // const setFlag = useGameStore((state) => state.setFlag);
+  
+  // Use persistent flag instead of ref to survive remounts
+  // const hasStopped = useGameStore((state) => state.flags['stopSignStopped']);
 
-  const stoppedRef = useRef(false);
   const finishedRef = useRef(false); 
 
   const aiCarRef = useRef<THREE.Group>(null); // Ref for the moving AICar
@@ -83,22 +87,27 @@ export const StopSignCrossTrafficScenario: React.FC = () => {
     }
 
     // --- LOGIC ---
+    const distToLine = Math.abs(z - (-14));
 
-    // 1. Detect Stop in Zone (Approaching line)
-    // Stop Line is around Z = -14
-    if (z < -5 && z > -15) { // Wider zone for stop detection
-      if (speed < 0.3) { // More lenient speed threshold
-        if (!stoppedRef.current) {
-          stoppedRef.current = true;
-          setMessage('Stopped. Wait for cross traffic.');
-        }
+      // Check if stopped near the line
+      if (distToLine < 10) {
+          if (Math.abs(speed) < 1.1) { 
+              // Set persistent flag
+              if (!useGameStore.getState().flags['stopSignStopped']) {
+                  useGameStore.getState().setFlag('stopSignStopped', true);
+              }
+              
+              // Check latest store state to avoid render loop
+              if (useGameStore.getState().message !== 'Stopped. Wait for safe gap.') {
+                  setMessage('Stopped. Wait for safe gap.');
+              }
+          }
       }
-    }
 
     // 2. Intersection Logic (Player entering intersection past stop line)
     if (z < -16) { // Player has crossed the stop line
         // FAIL CONDITION A: Ran Stop Sign
-        if (!stoppedRef.current) {
+        if (!useGameStore.getState().flags['stopSignStopped']) {
             failLevel('FAILED: You ran the Stop Sign!');
             finishedRef.current = true;
             return;
@@ -115,7 +124,7 @@ export const StopSignCrossTrafficScenario: React.FC = () => {
     // 3. Success Condition (Player safely crossed intersection)
     if (z < -30) {
       finishedRef.current = true; 
-      if (stoppedRef.current) {
+      if (useGameStore.getState().flags['stopSignStopped']) {
         passLevel();
       } else {
         failLevel('FAILED: Did not stop at Stop Sign or drove off road!');

@@ -10,29 +10,22 @@ import * as THREE from 'three';
 import { type PhysicsObject, PhysicsSystem } from '../physics/PhysicsSystem';
 
 export const TrainCrossingScenario: React.FC = () => {
-  const { setMessage, passLevel, failLevel } = useGameStore();
+  const setMessage = useGameStore((state) => state.setMessage);
+  const passLevel = useGameStore((state) => state.passLevel);
+  const failLevel = useGameStore((state) => state.failLevel);
+  const setFlag = useGameStore((state) => state.setFlag);
+  
+  // Use persistent flag
+//   const hasStopped = useGameStore((state) => state.flags['trainCrossingStopped']);
+
   const [finished, setFinished] = useState(false);
   const finishedRef = useRef(false);
-  const [hasStopped, setHasStopped] = useState(false); 
-  // Removed: const trainPassedRef = useRef(false); // No train to pass
-
-  // Removed: const trainRef = useRef<THREE.Group>(null); // Ref for the Train's THREE.Group
-
-  // Removed: Train management for big breaks
-  // Removed: const [trainCycleCount, setTrainCycleCount] = useState(0); 
-  // Removed: const trainResetTimer = useRef(0);
-  // Removed: const trainPauseDuration = 10;
-  // Removed: const trainSpeed = 15;
 
   // Unique ID for physics system registration for the grass
   const grassPhysicsObjectId = useRef(`grass_${Math.random().toFixed(5)}`);
   // Grass dimensions for AABB collision
   const grassSize = new THREE.Vector3(100, 1, 100); // Based on boxGeometry args
   const grassPosition = new THREE.Vector3(0, -0.6, -20); // Matches the mesh position
-
-  // Removed: Train's path points
-  // Removed: const trainStartPos = useRef(new THREE.Vector3(-50, 0.2, -20));
-  // Removed: const trainEndPos = useRef(new THREE.Vector3(50, 0.2, -20));
 
   useEffect(() => {
     setMessage('Scenario: Train Crossing. Stop at the tracks before crossing.');
@@ -71,38 +64,30 @@ export const TrainCrossingScenario: React.FC = () => {
     const z = position.z;
     const x = position.x;
 
-    // Removed: --- 1. TRACK TRAIN ---
-    // Removed: let trainX = 100;
-    // Removed: let trainZ = -20;
-    // Removed: let isTrainAtCrossing = false; 
-
-    // Removed: if (trainRef.current) { ... }
-
-    // Removed: --- TRAIN RESET LOGIC ---
-    // Removed: if (trainPassedRef.current) { ... }
-
-
     // --- LOGIC ---
 
     // Stop Detection: Player must stop before the tracks (Z = -15 approx)
     const playerStopLineZ = -15;
     const playerAtStopLine = (z < playerStopLineZ + 5 && z > playerStopLineZ - 5); // Much wider zone
 
-    if (!hasStopped && playerAtStopLine && speed < 1.0) { // Require stop regardless of train presence, more lenient speed
-        setHasStopped(true);
-        setMessage('Stopped. Proceed when safe.');
+    if (playerAtStopLine && Math.abs(speed) < 1.1) { // Require stop regardless of train presence, more lenient speed
+        if (!useGameStore.getState().flags['trainCrossingStopped']) {
+            setFlag('trainCrossingStopped', true);
+        }
+        if (useGameStore.getState().message !== 'Stopped. Proceed when safe.') {
+            setMessage('Stopped. Proceed when safe.');
+        }
     }
 
     // Fail if player crosses tracks without stopping
     if (z < -20) { // Player crosses tracks (Z = -20)
         // FAIL CONDITION A: Ran stop line
-        if (!hasStopped) {
+        if (!useGameStore.getState().flags['trainCrossingStopped']) {
             failLevel('FAILED: You did not stop at the tracks!');
             finishedRef.current = true;
             setFinished(true);
             return;
         }
-        // Removed: FAIL CONDITION B: Crossed while train was at crossing
     }
 
     // Fail if player goes too far off track after crossing (e.g., drives off road)
@@ -115,7 +100,7 @@ export const TrainCrossingScenario: React.FC = () => {
 
     // Success Condition: Player stopped and crossed safely
     if (z < -25) { // Player is well past the tracks, but before the "off road" boundary
-        if (hasStopped) { // Only requires that the player has stopped
+        if (useGameStore.getState().flags['trainCrossingStopped']) { // Only requires that the player has stopped
             passLevel();
             finishedRef.current = true;
             setFinished(true);

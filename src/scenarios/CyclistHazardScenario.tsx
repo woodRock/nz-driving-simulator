@@ -10,7 +10,10 @@ import { type PhysicsObject, PhysicsSystem } from '../physics/PhysicsSystem';
 
 
 export const CyclistHazardScenario: React.FC = () => {
-  const { setMessage, telemetry, passLevel, failLevel } = useGameStore();
+  const setMessage = useGameStore((state) => state.setMessage);
+  const passLevel = useGameStore((state) => state.passLevel);
+  const failLevel = useGameStore((state) => state.failLevel);
+
   const [finished, setFinished] = useState(false);
   const finishedRef = useRef(false);
 
@@ -51,7 +54,7 @@ export const CyclistHazardScenario: React.FC = () => {
   useFrame(() => {
     if (finished || finishedRef.current) return;
 
-    const { position } = telemetry;
+    const { position } = useGameStore.getState().telemetry;
     const carZ = position.z;
     const carX = position.x;
 

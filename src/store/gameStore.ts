@@ -41,11 +41,13 @@ interface GameState {
   score: number;
   telemetry: Telemetry;
   isPaused: boolean; // New state property
+  flags: Record<string, boolean>;
 
   // Actions
   setMessage: (msg: string) => void;
   setScore: (score: number) => void;
   updateTelemetry: (data: Partial<Telemetry>) => void;
+  setFlag: (key: string, value: boolean) => void;
   
   startCareer: () => void;
   nextLevel: () => void;
@@ -65,10 +67,12 @@ export const useGameStore = create<GameState>((set, get) => ({
   score: 100,
   telemetry: { speed: 0, position: { x: 0, y: 0, z: 0 }, indicators: { left: false, right: false } },
   isPaused: false, // Initial state for new property
+  flags: {},
 
   setMessage: (msg) => set({ message: msg }),
   setScore: (score) => set({ score }),
   updateTelemetry: (data) => set((state) => ({ telemetry: { ...state.telemetry, ...data } })),
+  setFlag: (key, value) => set((state) => ({ flags: { ...state.flags, [key]: value } })),
 
   startCareer: () => {
       set({ 
@@ -77,52 +81,54 @@ export const useGameStore = create<GameState>((set, get) => ({
           levelStatus: 'playing', 
           message: SCENARIOS[0].description,
           score: 100,
-          isPaused: false // Ensure not paused when starting career
+          isPaused: false,
+          flags: {} 
       });
   },
 
-  nextLevel: () => {
-      const nextIndex = get().currentLevelIndex + 1;
-      if (nextIndex < SCENARIOS.length) {
-          set({ 
-              currentLevelIndex: nextIndex, 
-              currentScenario: SCENARIOS[nextIndex].id, 
-              levelStatus: 'playing',
-              message: SCENARIOS[nextIndex].description,
-              score: 100,
-              isPaused: false // Ensure not paused when moving to next level
-          });
-      } else {
-          set({ currentScenario: 'menu', message: 'Career Completed! Well done.', isPaused: false });
-      }
-  },
-
-  retryLevel: () => {
-      const idx = get().currentLevelIndex;
-      set({ 
-          levelStatus: 'playing', 
-          message: SCENARIOS[idx].description,
-          score: 100,
-          isPaused: false // Ensure not paused when retrying level
-      });
-  },
-
-  passLevel: () => {
-      set({ levelStatus: 'passed', message: 'PASSED! Press Next to continue.', isPaused: false }); // Ensure not paused when passing
-  },
-
-  failLevel: (reason) => {
-      set({ levelStatus: 'failed', message: `FAILED: ${reason}`, score: 0, isPaused: false }); // Ensure not paused when failing
-  },
-
-  goToMenu: () => {
-      set({ currentScenario: 'menu', message: 'Welcome', isPaused: false }); // Ensure not paused when going to menu
-  },
-
-  selectScenario: (id) => {
-      set({ currentScenario: id, levelStatus: 'playing', message: '', score: 100, isPaused: false }); // Ensure not paused when selecting scenario
-  },
-
+    nextLevel: () => {
+        const nextIndex = get().currentLevelIndex + 1;
+        if (nextIndex < SCENARIOS.length) {
+            set({ 
+                currentLevelIndex: nextIndex, 
+                currentScenario: SCENARIOS[nextIndex].id, 
+                levelStatus: 'playing', 
+                message: SCENARIOS[nextIndex].description,
+                score: 100,
+                isPaused: false,
+                flags: {}
+            });
+        } else {
+            set({ currentScenario: 'menu', message: 'Career Completed! Well done.', isPaused: false, flags: {} });
+        }
+    },
+  
+    retryLevel: () => {
+        const idx = get().currentLevelIndex;
+        set({ 
+            levelStatus: 'playing', 
+            message: SCENARIOS[idx].description,
+            score: 100,
+            isPaused: false,
+            flags: {}
+        });
+    },
+  
+    passLevel: () => {
+        set({ levelStatus: 'passed', message: 'PASSED! Press Next to continue.', isPaused: false }); // Ensure not paused when passing
+    },
+  
+    failLevel: (reason) => {
+        set({ levelStatus: 'failed', message: `FAILED: ${reason}`, score: 0, isPaused: false }); // Ensure not paused when failing
+    },
+  
+    goToMenu: () => {
+        set({ currentScenario: 'menu', message: 'Welcome', isPaused: false, flags: {} }); // Ensure not paused when going to menu
+    },
+  
+    selectScenario: (id) => {
+        set({ currentScenario: id, levelStatus: 'playing', message: '', score: 100, isPaused: false, flags: {} }); // Ensure not paused when selecting scenario
+    },
   togglePause: () => {
       set((state) => ({ isPaused: !state.isPaused }));
   }

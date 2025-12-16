@@ -1,42 +1,51 @@
 
-import { useEffect, useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
+import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { latLonToMeters } from '../utils/geoUtils';
+import { latLonToMeters, MAP_CENTER_LAT, MAP_CENTER_LON, getChunkId, getChunkIdsAround } from '../utils/geoUtils';
+import { useGameStore } from '../store/gameStore';
 
-// Center of the map (approximate from first feature)
-const CENTER_LAT = -40.761484882856685;
-const CENTER_LON = 175.828480866816477;
+const ROAD_WIDTH = 20; 
+const MARKING_WIDTH = 0.3;
+const MARKING_Y = 0.15; 
 
-const ROAD_WIDTH = 20; // Define a consistent width for roads
+interface RoadsProps {
+    features: any[];
+}
 
-export const Roads = () => {
-  const [roadFeatures, setRoadFeatures] = useState<any[]>([]);
+interface ChunkData {
+    roadPositions: number[];
+    roadIndices: number[];
+    roadVertexCount: number;
+    markingPositions: number[];
+    markingIndices: number[];
+    markingVertexCount: number;
+}
 
-  useEffect(() => {
-    const fetchRoadData = async () => {
-      try {
-        const response = await fetch(`${import.meta.env.BASE_URL}wellington_roads.geojson`);
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+export const Roads = ({ features }: RoadsProps) => {
+  const [visibleChunkIds, setVisibleChunkIds] = useState<string[]>([]);
+  const lastChunkId = useRef<string | null>(null);
+
+  const chunkGeometries = useMemo(() => {
+    if (!features || features.length === 0) return {};
+    
+    const chunks = new Map<string, ChunkData>();
+
+    const getChunk = (id: string) => {
+        if (!chunks.has(id)) {
+            chunks.set(id, {
+                roadPositions: [],
+                roadIndices: [],
+                roadVertexCount: 0,
+                markingPositions: [],
+                markingIndices: [],
+                markingVertexCount: 0
+            });
         }
-        const data = await response.json();
-        setRoadFeatures(data.features);
-      } catch (error) {
-        console.error("Failed to load road data:", error);
-      }
+        return chunks.get(id)!;
     };
 
-    fetchRoadData();
-  }, []);
-
-  const geometry = useMemo(() => {
-    if (roadFeatures.length === 0) return null;
-    
-    const positions: number[] = [];
-    const indices: number[] = [];
-    let vertexCount = 0;
-
-    roadFeatures.forEach((feature: any) => {
+    features.forEach((feature: any) => {
         if (!feature.geometry) return;
         
         const type = feature.geometry.type;
@@ -50,33 +59,51 @@ export const Roads = () => {
                 const pos1 = new THREE.Vector3();
                 const pos2 = new THREE.Vector3();
 
-                // Convert Lat/Lon to Meters for 3D coordinates
-                const meterPos1 = latLonToMeters(p1[1], p1[0], CENTER_LAT, CENTER_LON);
-                const meterPos2 = latLonToMeters(p2[1], p2[0], CENTER_LAT, CENTER_LON);
+                const meterPos1 = latLonToMeters(p1[1], p1[0], MAP_CENTER_LAT, MAP_CENTER_LON);
+                const meterPos2 = latLonToMeters(p2[1], p2[0], MAP_CENTER_LAT, MAP_CENTER_LON);
 
-                pos1.set(meterPos1.x, 0.1, meterPos1.z); // Y-position slightly above ground
+                pos1.set(meterPos1.x, 0.1, meterPos1.z);
                 pos2.set(meterPos2.x, 0.1, meterPos2.z);
 
-                // Calculate direction and perpendicular vectors
+                // Determine chunk based on segment center
+                const midX = (pos1.x + pos2.x) / 2;
+                const midZ = (pos1.z + pos2.z) / 2;
+                const chunkId = getChunkId(midX, midZ);
+                const chunk = getChunk(chunkId);
+
+                // Calculate geometry
                 const dir = new THREE.Vector3().subVectors(pos2, pos1);
-                const perp = new THREE.Vector3(-dir.z, 0, dir.x).normalize().multiplyScalar(ROAD_WIDTH / 2);
-
-                // Define 4 vertices for the road segment
-                const v0 = new THREE.Vector3().subVectors(pos1, perp);
-                const v1 = new THREE.Vector3().addVectors(pos1, perp);
-                const v2 = new THREE.Vector3().subVectors(pos2, perp);
-                const v3 = new THREE.Vector3().addVectors(pos2, perp);
-
-                positions.push(v0.x, v0.y, v0.z);
-                positions.push(v1.x, v1.y, v1.z);
-                positions.push(v2.x, v2.y, v2.z);
-                positions.push(v3.x, v3.y, v3.z);
-
-                // Add indices for two triangles (forming a quad)
-                indices.push(vertexCount + 0, vertexCount + 1, vertexCount + 2);
-                indices.push(vertexCount + 1, vertexCount + 3, vertexCount + 2);
+                const perp = new THREE.Vector3(-dir.z, 0, dir.x).normalize();
                 
-                vertexCount += 4;
+                // --- Road ---
+                const roadPerp = perp.clone().multiplyScalar(ROAD_WIDTH / 2);
+                const v0 = new THREE.Vector3().subVectors(pos1, roadPerp);
+                const v1 = new THREE.Vector3().addVectors(pos1, roadPerp);
+                const v2 = new THREE.Vector3().subVectors(pos2, roadPerp);
+                const v3 = new THREE.Vector3().addVectors(pos2, roadPerp);
+
+                chunk.roadPositions.push(v0.x, v0.y, v0.z, v1.x, v1.y, v1.z, v2.x, v2.y, v2.z, v3.x, v3.y, v3.z);
+                chunk.roadIndices.push(
+                    chunk.roadVertexCount + 0, chunk.roadVertexCount + 1, chunk.roadVertexCount + 2,
+                    chunk.roadVertexCount + 1, chunk.roadVertexCount + 3, chunk.roadVertexCount + 2
+                );
+                chunk.roadVertexCount += 4;
+
+                // --- Marking ---
+                const markingPerp = perp.clone().multiplyScalar(MARKING_WIDTH / 2);
+                const mPos1 = pos1.clone().setY(MARKING_Y);
+                const mPos2 = pos2.clone().setY(MARKING_Y);
+                const mv0 = new THREE.Vector3().subVectors(mPos1, markingPerp);
+                const mv1 = new THREE.Vector3().addVectors(mPos1, markingPerp);
+                const mv2 = new THREE.Vector3().subVectors(mPos2, markingPerp);
+                const mv3 = new THREE.Vector3().addVectors(mPos2, markingPerp);
+
+                chunk.markingPositions.push(mv0.x, mv0.y, mv0.z, mv1.x, mv1.y, mv1.z, mv2.x, mv2.y, mv2.z, mv3.x, mv3.y, mv3.z);
+                chunk.markingIndices.push(
+                    chunk.markingVertexCount + 0, chunk.markingVertexCount + 1, chunk.markingVertexCount + 2,
+                    chunk.markingVertexCount + 1, chunk.markingVertexCount + 3, chunk.markingVertexCount + 2
+                );
+                chunk.markingVertexCount += 4;
             }
         };
 
@@ -89,19 +116,52 @@ export const Roads = () => {
         }
     });
 
-    const bufferGeometry = new THREE.BufferGeometry();
-    bufferGeometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-    bufferGeometry.setIndex(indices);
-    bufferGeometry.computeVertexNormals(); // Important for correct lighting
+    const geometries: Record<string, { road: THREE.BufferGeometry, marking: THREE.BufferGeometry }> = {};
+    
+    chunks.forEach((data, id) => {
+        const roadGeo = new THREE.BufferGeometry();
+        roadGeo.setAttribute('position', new THREE.Float32BufferAttribute(data.roadPositions, 3));
+        roadGeo.setIndex(data.roadIndices);
+        roadGeo.computeVertexNormals();
 
-    return bufferGeometry;
-  }, [roadFeatures]);
+        const markingGeo = new THREE.BufferGeometry();
+        markingGeo.setAttribute('position', new THREE.Float32BufferAttribute(data.markingPositions, 3));
+        markingGeo.setIndex(data.markingIndices);
+        markingGeo.computeVertexNormals();
 
-  if (!geometry) return null;
+        geometries[id] = { road: roadGeo, marking: markingGeo };
+    });
+
+    return geometries;
+  }, [features]);
+
+  useFrame(() => {
+      const { x, z } = useGameStore.getState().telemetry.position;
+      const currentId = getChunkId(x, z);
+      
+      if (currentId !== lastChunkId.current) {
+          lastChunkId.current = currentId;
+          const ids = getChunkIdsAround(x, z, 1); // Radius 1 (3x3 chunks)
+          setVisibleChunkIds(ids);
+      }
+  });
 
   return (
-    <mesh geometry={geometry}> {/* Render as a mesh */}
-      <meshStandardMaterial color="#424242" /> {/* Asphalt color */}
-    </mesh>
+    <group>
+        {visibleChunkIds.map(id => {
+            const geo = chunkGeometries[id];
+            if (!geo) return null;
+            return (
+                <group key={id}>
+                    <mesh geometry={geo.road}>
+                        <meshStandardMaterial color="#424242" />
+                    </mesh>
+                    <mesh geometry={geo.marking}>
+                        <meshStandardMaterial color="#FFFFFF" />
+                    </mesh>
+                </group>
+            );
+        })}
+    </group>
   );
 };

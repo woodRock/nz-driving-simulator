@@ -11,10 +11,16 @@ import * as THREE from 'three';
 import { type PhysicsObject, PhysicsSystem } from '../physics/PhysicsSystem';
 
 export const FourWayGiveWayScenario: React.FC = () => {
-  const { setMessage, passLevel, failLevel } = useGameStore();
+  const setMessage = useGameStore((state) => state.setMessage);
+  const passLevel = useGameStore((state) => state.passLevel);
+  const failLevel = useGameStore((state) => state.failLevel);
+  const setFlag = useGameStore((state) => state.setFlag);
+  
+  // Use persistent flag
+  // const hasStopped = useGameStore((state) => state.flags['fourWayStopped']);
+
   const [finished, setFinished] = useState(false);
   const finishedRef = useRef(false);
-  const [hasStopped, setHasStopped] = useState(false); // Player needs to stop at Give Way line
 
   const aiCarRef = useRef<THREE.Group>(null); // Ref for the moving AICar
 
@@ -86,11 +92,15 @@ export const FourWayGiveWayScenario: React.FC = () => {
     // --- LOGIC ---
     // Stop Detection: Player must stop at give way line (Z = 0 approx)
     const playerGiveWayLineZ = 0; // Aligned with actual Give Way sign
-    const playerAtStopLine = (z < playerGiveWayLineZ + 1 && z > playerGiveWayLineZ - 3); // Wider zone for stopping around the line
+    const playerAtStopLine = (z < playerGiveWayLineZ + 1 && z > playerGiveWayLineZ - 5); // Wider zone for stopping around the line
 
-    if (!hasStopped && playerAtStopLine && speed < 0.5) { // Lenient speed
-        setHasStopped(true);
-        setMessage('Stopped. Wait for cross traffic from your right.');
+    if (playerAtStopLine && Math.abs(speed) < 1.1) { // Lenient speed matching physics
+        if (!useGameStore.getState().flags['fourWayStopped']) {
+            setFlag('fourWayStopped', true);
+        }
+        if (useGameStore.getState().message !== 'Stopped. Wait for cross traffic from your right.') {
+            setMessage('Stopped. Wait for cross traffic from your right.');
+        }
     }
 
     // Intersection Logic (Player entering intersection past give way line)
@@ -103,7 +113,7 @@ export const FourWayGiveWayScenario: React.FC = () => {
              return;
         }
         // FAIL CONDITION B: Did not stop (if AI was present) - ONLY IF AI WAS PRESENT!
-        if (isAICarInIntersectionArea && !hasStopped) { // Only fail for not stopping if there was actually traffic to stop for
+        if (isAICarInIntersectionArea && !useGameStore.getState().flags['fourWayStopped']) { // Only fail for not stopping if there was actually traffic to stop for
             failLevel('You ran the Give Way sign without stopping for traffic!');
             finishedRef.current = true;
             setFinished(true);
