@@ -4,9 +4,20 @@ import { Car } from '../components/vehicle/Car';
 import { useGameStore } from '../store/gameStore';
 import * as THREE from 'three';
 import { type PhysicsObject, PhysicsSystem } from '../physics/PhysicsSystem';
+import { latLonToMeters } from '../utils/geoUtils'; // Import latLonToMeters
 
 export const WellingtonScenario: React.FC = () => {
   const { setMessage, setScore, failLevel } = useGameStore(); // Added failLevel
+
+  // Define spawn and center coordinates
+  const spawnLat = -41.34052619898928;
+  const spawnLon = 174.77126271642854;
+  // Approximate center of Wellington for relative conversion
+  const centerLat = -40.761484882856685; 
+  const centerLon = 175.828480866816477;
+
+  // Convert spawn Lat/Lon to Meters
+  const { x: spawnX, z: spawnZ } = latLonToMeters(spawnLat, spawnLon, centerLat, centerLon);
 
   // Unique ID for physics system registration for the grass
   const grassPhysicsObjectId = useRef(`grass_${Math.random().toFixed(5)}`);
@@ -49,14 +60,14 @@ export const WellingtonScenario: React.FC = () => {
       {/* Ground Plane */}
       <mesh position={grassPosition} receiveShadow>
         <boxGeometry args={[100000, 1, 100000]} />
-        <meshStandardMaterial color="#222222" roughness={0.8} />
+        <meshStandardMaterial color="#558b2f" roughness={0.8} />
       </mesh>
 
       {/* Roads Visuals */}
       <Roads />
 
       {/* Player Car */}
-      <Car />
+      <Car position={[spawnX, 1, spawnZ]} /> {/* Car spawned at calculated Lat/Lon */}
     </group>
   );
 };
