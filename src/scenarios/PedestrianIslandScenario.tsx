@@ -102,7 +102,7 @@ export const PedestrianIslandScenario: React.FC = () => {
 
     // Pedestrian crosses at z = -20, across X from -10 to 10
     const pedestrianCrossingZ = -20;
-    const playerStopLineZ = -15; // Player needs to stop before this Z
+    const playerStopLineZ = -5; // Player needs to stop before this Z, moved further back
     
     const pedestrianHalfwayX = 0; // Pedestrian reaches safety of island gap at X=0 (middle of the road)
 
