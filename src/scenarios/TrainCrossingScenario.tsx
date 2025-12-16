@@ -36,7 +36,6 @@ export const TrainCrossingScenario: React.FC = () => {
 
   useEffect(() => {
     setMessage('Scenario: Train Crossing. Stop at the tracks before crossing.');
-    console.log('TrainCrossingScenario mounted/remounted. hasStopped initialized to false.');
   }, [setMessage]);
 
   useEffect(() => {
@@ -71,8 +70,6 @@ export const TrainCrossingScenario: React.FC = () => {
     const { position, speed } = telemetry;
     const z = position.z;
     const x = position.x;
-
-    console.log('TrainCrossingScenario - hasStopped:', hasStopped, 'Player Z:', z.toFixed(2));
 
     // Removed: --- 1. TRACK TRAIN ---
     // Removed: let trainX = 100;

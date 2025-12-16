@@ -88,6 +88,9 @@ export const PedestrianScenario: React.FC = () => {
     if (pedestrianRef.current && !pedestrianCrossedRef.current) {
         if (currentPedestrianX >= pedestrianRoadEndX) { // Pedestrian has crossed the entire road (X >= 5)
             pedestrianCrossedRef.current = true;
+            if (!isPedestrianOnRoad) {
+                setMessage('Pedestrian has safely crossed. You may proceed.');
+            }
         }
     }
 
