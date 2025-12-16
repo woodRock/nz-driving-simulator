@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { StraightRoad } from '../components/world/StraightRoad';
 import { LargeIntersection } from '../components/world/LargeIntersection';

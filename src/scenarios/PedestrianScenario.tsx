@@ -8,7 +8,7 @@ import * as THREE from 'three';
 import { type PhysicsObject, PhysicsSystem } from '../physics/PhysicsSystem';
 
 export const PedestrianScenario: React.FC = () => {
-  const { setMessage, telemetry, failLevel, passLevel } = useGameStore();
+  const { setMessage, failLevel, passLevel } = useGameStore();
   const [finished, setFinished] = useState(false);
   const failedRef = useRef(false);
   const [hasStopped, setHasStopped] = useState(false); // New state for stop detection
@@ -50,24 +50,21 @@ export const PedestrianScenario: React.FC = () => {
 
   useFrame(() => {
     if (finished || failedRef.current) return;
-    const { position, speed } = telemetry;
+    const telemetry = useGameStore.getState().telemetry; // Access telemetry directly
+    if (!telemetry || !telemetry.position) return;
+
+    const { position } = telemetry; // Only destructure position
+    const speed = telemetry.speed; // Explicitly define speed
     const playerSpeed = speed;
 
     // Pedestrian crosses at z = -20, across X from -10 to 10
     const pedestrianCrossingZ = -20;
     const playerStopLineZ = -15; // Player needs to stop before this Z
     const roadWidth = 10; // Road is 10 units wide (X from -5 to 5)
-    const pedestrianRoadStartX = -roadWidth / 2; // -5
     const pedestrianRoadEndX = roadWidth / 2;    // 5
 
     // Get Pedestrian's actual position if ref is available
     let currentPedestrianX = 0;
-    let isPedestrianOnRoad = false;
-    if (pedestrianRef.current) {
-        currentPedestrianX = pedestrianRef.current.position.x; // Now directly from THREE.Mesh
-        // Check if pedestrian is actually on the road
-        isPedestrianOnRoad = (currentPedestrianX > pedestrianRoadStartX && currentPedestrianX < pedestrianRoadEndX);
-    }
     
     // Trigger pedestrian movement when player enters a zone
     if (!pedestrianActive && position.z < -5 && position.z > -15) { // Trigger zone before stop line
@@ -75,15 +72,9 @@ export const PedestrianScenario: React.FC = () => {
         setMessage('Pedestrian ahead! Stop before the crossing.');
     }
 
-    const pedestrianPresent = isPedestrianOnRoad; 
-
-    // console.log(`Pedestrian X: ${currentPedestrianX.toFixed(2)}, On Road: ${isPedestrianOnRoad}, Player Z: ${position.z.toFixed(2)}, Player Speed: ${playerSpeed.toFixed(2)}, hasStopped: ${hasStopped}`);
-
-
     // Stop Detection: Player must stop before playerStopLineZ if pedestrian is present
-    const playerAtStopLine = (position.z < playerStopLineZ + 3 && position.z > playerStopLineZ - 3); // Wider window around the stop line
-    if (pedestrianActive && !hasStopped && playerAtStopLine && playerSpeed < 0.8) { // Pedestrian needs to be active, more lenient speed
-        console.log("STOP DETECTED for Pedestrian! Player Z:", position.z.toFixed(2), "Speed:", playerSpeed.toFixed(2));
+    const playerAtStopLine = (position.z < playerStopLineZ + 5 && position.z > playerStopLineZ - 5); // Much wider window around the stop line
+    if (pedestrianActive && !hasStopped && playerAtStopLine && playerSpeed < 1.5) { // Pedestrian needs to be active, even more lenient speed
         setHasStopped(true);
     }
 
@@ -91,7 +82,6 @@ export const PedestrianScenario: React.FC = () => {
     if (pedestrianRef.current && !pedestrianCrossedRef.current) {
         if (currentPedestrianX >= pedestrianRoadEndX) { // Pedestrian has crossed the entire road
             pedestrianCrossedRef.current = true;
-            console.log("PEDESTRIAN CROSSED!");
         }
     }
 
@@ -105,12 +95,6 @@ export const PedestrianScenario: React.FC = () => {
     
     // Pass condition: Player successfully passed the pedestrian crossing zone
     if (position.z < pedestrianCrossingZ - 10) { // Player is well past the crossing
-        console.log('--- Pass Condition Check ---');
-        console.log('pedestrianActive:', pedestrianActive);
-        console.log('hasStopped:', hasStopped);
-        console.log('pedestrianCrossedRef.current:', pedestrianCrossedRef.current);
-        console.log('Player Z:', position.z.toFixed(2));
-
         if (pedestrianActive) { // Only evaluate these if the pedestrian was activated
             if (!hasStopped) { 
                 failLevel('You did not stop for the pedestrian!');

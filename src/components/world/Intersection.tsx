@@ -30,8 +30,8 @@ export const Intersection: React.FC<IntersectionProps> = ({
         quaternion: initialQuaternion, // Use initial quaternion
         size: intersectionSize,
         type: 'intersection',
-        onCollide: (other: PhysicsObject) => {
-            // console.log(`Intersection collided with ${other.type}`);
+        onCollide: (_other: PhysicsObject) => {
+            // console.log(`Intersection collided with ${_other.type}`);
         }
     };
     PhysicsSystem.registerObject(intersectionPhysicsObject);

@@ -49,59 +49,63 @@ export const GiveWayRightToLeftScenario: React.FC = () => {
     };
   }, [failLevel]);
 
-  useFrame(() => {
-    if (finished || finishedRef.current) return;
-
-    const telemetry = useGameStore.getState().telemetry;
-
-    if (!telemetry || !telemetry.position) return;
-
-    const { position, speed } = telemetry;
-    const z = position.z;
-    const x = position.x;
-
-    // --- 1. TRACK AI CAR ---
-    let aiCarX = -50; // Default far away
-    let aiCarZ = -10; // Default intersection Z
-    let distToHazard = 10; // Default safe
-    let isAICarInIntersectionArea = false; // Dynamic check for AI car's hazard status
-
-    if (aiCarRef.current) {
-        aiCarX = aiCarRef.current.position.x; 
-        aiCarZ = aiCarRef.current.position.z;
-        
-        distToHazard = Math.sqrt(
-            Math.pow(x - aiCarX, 2) + 
-            Math.pow(z - aiCarZ, 2)
-        );
-
-        // AI car moves from X = 15 to X = -15 across the intersection (main road)
-        // Consider AI car a hazard if it's within a wider zone around the intersection.
-        if (aiCarX < 10 && aiCarX > -10) { 
-            isAICarInIntersectionArea = true;
-        }
-    }
-
-    // --- 2. PLAYER LOGIC ---
-    // Player starts near the give way line, primary task is to wait for AI car
-
-    // --- 3. INTERSECTION LOGIC ---
-    // We only evaluate "Give Way" failures if the player enters the intersection (Z < -1)
-    if (z < -1) { 
-        // FAIL CONDITION A: Dangerous Cut-off
-        // If player moves into intersection when AI car is a hazard
-        if (isAICarInIntersectionArea && distToHazard < 8) { // Adjusted threshold for even more leeway
-             failLevel('You entered the intersection without giving way to cross traffic!'); 
-             finishedRef.current = true;
-             setFinished(true);
-             return;
-        }
-    }
-
-    // Success Condition: Player successfully went straight after AI car has passed (or is safely far away)
+      useFrame(() => {
+      if (finished || finishedRef.current) return;
+  
+      const telemetry = useGameStore.getState().telemetry;
+  
+      if (!telemetry || !telemetry.position) return;
+  
+      const { position } = telemetry;
+      const z = position.z;
+      const x = position.x;
+  
+          // --- 1. TRACK AI CAR ---
+          let aiCarX = -50; // Default far away
+          let aiCarZ = -10; // Default intersection Z
+          let distToHazard = 10; // Default safe
+          let isAICarInIntersectionArea = false; // Dynamic check for AI car's hazard status
+      
+          if (aiCarRef.current) {
+              aiCarX = aiCarRef.current.position.x; 
+              aiCarZ = aiCarRef.current.position.z;
+              
+              distToHazard = Math.sqrt(
+                  Math.pow(x - aiCarX, 2) + 
+                  Math.pow(z - aiCarZ, 2)
+              );
+      
+              // AI car moves from X = 15 to X = -15 across the intersection (main road)
+              // Consider AI car a hazard if it's within a wider zone around the intersection.
+              if (aiCarX < 10 && aiCarX > -10) { 
+                  isAICarInIntersectionArea = true;
+              }
+          }
+          // console.log('--- GiveWayRightToLeft DEBUG ---'); // Removed debug log
+          // console.log('Player Position Z:', z.toFixed(2), 'X:', x.toFixed(2)); // Removed debug log
+          // console.log('AI Car X:', aiCarX.toFixed(2), 'isAICarInIntersectionArea:', isAICarInIntersectionArea); // Removed debug log
+          // console.log('distToHazard:', distToHazard.toFixed(2)); // Removed debug log
+      
+          // --- 2. PLAYER LOGIC ---
+          // Player starts near the give way line, primary task is to wait for AI car
+      
+          // --- 3. INTERSECTION LOGIC ---
+          // We only evaluate "Give Way" failures if the player enters the intersection (Z < -1)
+          if (z < -1) { 
+              // FAIL CONDITION A: Dangerous Cut-off
+              // If player moves into intersection when AI car is a hazard
+              if (isAICarInIntersectionArea && distToHazard < 8) { // Adjusted threshold for even more leeway
+                   failLevel('You entered the intersection without giving way to cross traffic!'); 
+                   finishedRef.current = true;
+                   setFinished(true);
+                   return;
+              }
+          }    // Success Condition: Player successfully went straight after AI car has passed (or is safely far away)
     if (z < -10 && x < 5 && x > -5) { // Went straight
         // Ensure AI car is far enough away if it was ever a hazard
-        if (!isAICarInIntersectionArea || closestDistToHazard > 20) { // Check if AI cleared or was never a problem
+        console.log('--- Success Check DEBUG ---');
+        console.log('isAICarInIntersectionArea:', isAICarInIntersectionArea, 'distToHazard:', distToHazard.toFixed(2));
+        if (!isAICarInIntersectionArea || distToHazard > 8) { // Use distToHazard directly
             passLevel();
             finishedRef.current = true;
             setFinished(true);

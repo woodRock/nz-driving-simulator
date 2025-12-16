@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { StraightRoad } from '../components/world/StraightRoad';
 import { LargeIntersection } from '../components/world/LargeIntersection';
@@ -48,6 +48,7 @@ export const StopSignCrossTrafficScenario: React.FC = () => {
     // Cleanup: unregister on unmount
     return () => {
         PhysicsSystem.unregisterObject(grassPhysicsObjectId.current);
+        finishedRef.current = false; // Reset finished flag on unmount
     };
   }, [failLevel]);
 
@@ -86,7 +87,7 @@ export const StopSignCrossTrafficScenario: React.FC = () => {
     // 1. Detect Stop in Zone (Approaching line)
     // Stop Line is around Z = -14
     if (z < -5 && z > -15) { // Wider zone for stop detection
-      if (speed < 0.2) { // More lenient speed threshold
+      if (speed < 0.3) { // More lenient speed threshold
         if (!stoppedRef.current) {
           stoppedRef.current = true;
           setMessage('Stopped. Wait for cross traffic.');

@@ -11,7 +11,7 @@ import * as THREE from 'three';
 import { PhysicsSystem, type PhysicsObject } from '../physics/PhysicsSystem';
 
 export const GiveWayMergeTrafficScenario: React.FC = () => {
-  const { setMessage, telemetry, passLevel, failLevel } = useGameStore();
+  const { setMessage, passLevel, failLevel } = useGameStore();
   const [finished, setFinished] = useState(false);
   const finishedRef = useRef(false);
 
@@ -55,7 +55,10 @@ export const GiveWayMergeTrafficScenario: React.FC = () => {
   useFrame(() => {
     if (finished || finishedRef.current) return;
 
-    const { position, speed } = telemetry;
+    const telemetry = useGameStore.getState().telemetry;
+    if (!telemetry || !telemetry.position) return; // Ensure telemetry is valid before destructuring
+
+    const { position } = telemetry;
     const x = position.x;
     const z = position.z;
 

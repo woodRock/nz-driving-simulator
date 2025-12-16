@@ -24,8 +24,8 @@ export const Roundabout: React.FC<RoundaboutProps> = ({ position = [0, 0, 0] }) 
         quaternion: new THREE.Quaternion(), // Static object, identity quaternion
         size: roundaboutSize,
         type: 'roundabout',
-        onCollide: (other: PhysicsObject) => {
-            // console.log(`Roundabout collided with ${other.type}`);
+        onCollide: (_other: PhysicsObject) => {
+            // console.log(`Roundabout collided with ${_other.type}`);
         }
     };
     PhysicsSystem.registerObject(roundaboutPhysicsObject);

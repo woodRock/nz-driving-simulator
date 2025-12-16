@@ -32,9 +32,9 @@ export const StraightRoad: React.FC<StraightRoadProps> = ({
         quaternion: initialQuaternion, // Use initial quaternion
         size: roadSize,
         type: 'road',
-        onCollide: (other: PhysicsObject) => {
+        onCollide: (_other: PhysicsObject) => {
             // Can be used to detect if a car drives off the road
-            // console.log(`StraightRoad collided with ${other.type}`);
+            // console.log(`StraightRoad collided with ${_other.type}`);
         }
     };
     PhysicsSystem.registerObject(roadPhysicsObject);

@@ -9,7 +9,6 @@ import { useGameStore } from '../store/gameStore';
 
 import * as THREE from 'three';
 import { type PhysicsObject, PhysicsSystem } from '../physics/PhysicsSystem';
-import { StationaryAICar } from '../components/vehicle/StationaryAICar';
 
 export const TIntersectionGiveWayScenario: React.FC = () => {
   const { setMessage, passLevel, failLevel } = useGameStore();

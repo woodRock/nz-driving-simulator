@@ -82,10 +82,7 @@ export const UI: React.FC = () => {
           </div>
         </div>
       );
-    }
-  
-    // Pause Overlay
-    if (isPaused) {
+    } else if (isPaused) { // Pause Overlay
         if (showControls) {
             return (
                 <div style={{
@@ -136,10 +133,7 @@ export const UI: React.FC = () => {
                 </button>
             </div>
         );
-    }
-
-    // Success Overlay
-    if (levelStatus === 'passed') {
+    } else if (levelStatus === 'passed') { // Success Overlay
         return (
           <div style={{
               position: 'absolute',
@@ -155,10 +149,7 @@ export const UI: React.FC = () => {
               </button>
             </div>
         );
-    }
-  
-    // Failure Overlay
-    if (levelStatus === 'failed') {
+    } else if (levelStatus === 'failed') { // Failure Overlay
       return (
         <div style={{
             position: 'absolute',
@@ -177,10 +168,7 @@ export const UI: React.FC = () => {
             </button>
           </div>
       );
-  }
-  
-    // In-Game HUD (only render if not paused, passed, or failed)
-    if (currentScenario !== 'menu' && levelStatus === 'playing') { // isPaused handled by separate overlay
+  } else if (levelStatus === 'playing') { // At this point, currentScenario is definitely ScenarioId
         return (
           <div style={{
             position: 'absolute',

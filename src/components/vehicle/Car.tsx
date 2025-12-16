@@ -388,7 +388,7 @@ export const Car: React.FC<CarProps> = ({ position = [0, 1, 0], rotation: initia
         });
   
     // Convert initialRotation to a Quaternion once (This should be before return)
-    const initialQuaternion = new THREE.Quaternion().setFromEuler(new THREE.Euler(...initialRotation));
+    // const initialQuaternion = new THREE.Quaternion().setFromEuler(new THREE.Euler(...initialRotation)); // Removed as no longer used
   
     return (
     <group 

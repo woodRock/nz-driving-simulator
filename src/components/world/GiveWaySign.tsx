@@ -22,8 +22,8 @@ export const GiveWaySign: React.FC<{ position: [number, number, number], rotatio
         quaternion: initialQuaternion, // Use initial quaternion
         size: signSize,
         type: 'sign',
-        onCollide: (other: PhysicsObject) => {
-            // console.log(`GiveWaySign collided with ${other.type}`);
+        onCollide: (_other: PhysicsObject) => {
+            // console.log(`GiveWaySign collided with ${_other.type}`);
         }
     };
     PhysicsSystem.registerObject(signPhysicsObject);

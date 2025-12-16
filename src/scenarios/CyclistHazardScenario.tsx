@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { StraightRoad } from '../components/world/StraightRoad';
 import { Car } from '../components/vehicle/Car';
+import { Cyclist } from '../components/vehicle/Cyclist'; // Import Cyclist component
 
 import { useGameStore } from '../store/gameStore';
 import * as THREE from 'three';
@@ -12,6 +13,8 @@ export const CyclistHazardScenario: React.FC = () => {
   const { setMessage, telemetry, passLevel, failLevel } = useGameStore();
   const [finished, setFinished] = useState(false);
   const finishedRef = useRef(false);
+
+  const cyclistRef = useRef<THREE.Group>(null); // Ref for the Cyclist's THREE.Group
 
   // Unique ID for physics system registration for the grass
   const grassPhysicsObjectId = useRef(`grass_${Math.random().toFixed(5)}`);
@@ -52,25 +55,44 @@ export const CyclistHazardScenario: React.FC = () => {
     const carZ = position.z;
     const carX = position.x;
 
-    // Let's stick to a simpler rule for this MVP:
-    // To pass this level, you must finish at Z < -80.
-    // If you collide with the cyclist, you will likely fail due to crash (if we had crash detection) or just get stuck.
-    // But we want to enforce the gap.
+    // --- TRACK CYCLIST ---
+    let cyclistZ = -30; // Default far away
+
+    if (cyclistRef.current) {
+        cyclistZ = cyclistRef.current.position.z;
+    }
     
-    // Enforce: When Z is between -30 and -70 (overtaking zone), X must be > 0.
-    if (carZ < -30 && carZ > -70) { // Overtaking zone
-        // If player is in the left lane (X < 0) within the overtaking zone
-        if (carX < 0) {
-            failLevel('You passed too close to the cyclist! Move to the other lane.');
-            finishedRef.current = true;
-            setFinished(true);
+    // Fail if player passes too close to the cyclist
+    // Player is in the overtaking zone (carZ < -30 && carZ > -70)
+    // Cyclist is present (cyclistZ is also in this zone)
+    // Player X is in the same lane as cyclist (e.g., carX < 0 for left lane)
+    // Distance to cyclist is too small
+    if (carZ < -20 && carZ > -70) { // Overtaking detection zone (player must be in this zone)
+        if (cyclistRef.current) { // Ensure cyclist is active in the scene
+            if (Math.abs(carZ - cyclistZ) < 5) { // If player is roughly alongside cyclist (Z difference < 5 units)
+                if (carX < 0.5) { // If player is in cyclist's lane (cyclist is at X=-3.5, so X < 0.5 is left lane)
+                    failLevel('You passed too close to the cyclist! Maintain safe distance.');
+                    finishedRef.current = true;
+                    setFinished(true);
+                    return;
+                }
+            }
         }
     }
 
-    if (position.z < -80) { // Pass condition
+    // Pass condition: Player successfully overtook cyclist and is well ahead
+    // Player is past the cyclist (carZ < cyclistZ), and well past the overtaking zone (carZ < -80)
+    if (carZ < -80 && cyclistZ > -90) { // Player is far past the cyclist AND cyclist is also past the initial zone
          passLevel();
          finishedRef.current = true;
          setFinished(true);
+    }
+    
+    // Out of bounds / drove off road
+    if (carX < -5.5 || carX > 5.5) { // Standard road width check (e.g., 10 units wide road, -5 to 5)
+        failLevel('You drove off the road!');
+        finishedRef.current = true;
+        setFinished(true);
     }
   });
 
@@ -94,6 +116,15 @@ export const CyclistHazardScenario: React.FC = () => {
       <StraightRoad position={[0, 0, -80]} length={10} />
       <StraightRoad position={[0, 0, -90]} length={10} />
       <StraightRoad position={[0, 0, -100]} length={10} />
+
+      {/* Cyclist */}
+      <Cyclist 
+        ref={cyclistRef}
+        startPos={[-3.5, 0.2, -10]} // Starts in the left lane, closer to player
+        endPos={[-3.5, 0.2, -90]} // Moves straight down the road
+        speed={3} 
+        delay={0} 
+      />
 
       {/* Player Car - Starts behind the cyclist in the left lane */}
       <Car position={[-2.5, 1, 0]} /> 

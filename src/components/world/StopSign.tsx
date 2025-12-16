@@ -22,8 +22,8 @@ export const StopSign: React.FC<{ position: [number, number, number], rotation?:
         quaternion: initialQuaternion, // Use initial quaternion
         size: signSize,
         type: 'sign',
-        onCollide: (other: PhysicsObject) => {
-            // console.log(`StopSign collided with ${other.type}`);
+        onCollide: (_other: PhysicsObject) => {
+            // console.log(`StopSign collided with ${_other.type}`);
         }
     };
     PhysicsSystem.registerObject(signPhysicsObject);

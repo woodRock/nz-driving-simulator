@@ -15,7 +15,11 @@ import { TIntersectionGiveWayScenario } from './scenarios/TIntersectionGiveWaySc
 import { StopSignCrossTrafficScenario } from './scenarios/StopSignCrossTrafficScenario'; // New import
 import { GiveWayMergeTrafficScenario } from './scenarios/GiveWayMergeTrafficScenario'; // New import
 import { GiveWayRightToLeftScenario } from './scenarios/GiveWayRightToLeftScenario'; // New import
+import { FourWayGiveWayScenario } from './scenarios/FourWayGiveWayScenario'; // New import
+import { TrainCrossingScenario } from './scenarios/TrainCrossingScenario'; // New import
+import { TIntersectionLeftOncomingScenario } from './scenarios/TIntersectionLeftOncomingScenario'; // New import
 import { PhysicsSystem } from './physics/PhysicsSystem'; // Custom PhysicsSystem import
+import { CyclistHazardScenario } from './scenarios/CyclistHazardScenario';
 
 function Scene() {
   const { currentScenario, currentLevelIndex, levelStatus } = useGameStore();
@@ -37,6 +41,7 @@ function Scene() {
       
       {/* Removed: <Physics debug gravity={[0, -9.81, 0]}> */}
         <group key={key}>
+          {currentScenario === 'cyclist-hazard' && <CyclistHazardScenario />}
           {currentScenario === 'giveway' && <GiveWayScenario />}
           {currentScenario === 't-intersection' && <TIntersectionScenario />}
           {currentScenario === 'roundabout' && <RoundaboutScenario />}
@@ -48,7 +53,10 @@ function Scene() {
           {currentScenario === 't-intersection-give-way' && <TIntersectionGiveWayScenario />}
           {currentScenario === 'stop-sign-cross-traffic' && <StopSignCrossTrafficScenario />}
           {currentScenario === 'giveway-merge-traffic' && <GiveWayMergeTrafficScenario />}
-          {currentScenario === 'giveway-right-to-left' && <GiveWayRightToLeftScenario />} {/* New scenario */}
+          {currentScenario === 'giveway-right-to-left' && <GiveWayRightToLeftScenario />}
+          {currentScenario === 'four-way-give-way' && <FourWayGiveWayScenario />}
+          {currentScenario === 'train-crossing' && <TrainCrossingScenario />}
+          {currentScenario === 't-intersection-left-oncoming' && <TIntersectionLeftOncomingScenario />} {/* New scenario */}
         </group>
       {/* Removed: </Physics> */}
     </>

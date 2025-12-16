@@ -48,8 +48,8 @@ export const Pedestrian: React.FC<PedestrianProps> = ({
             quaternion: new THREE.Quaternion(), // Pedestrians don't typically rotate
             size: pedestrianSize,
             type: 'pedestrian',
-            onCollide: (other: PhysicsObject) => {
-                // console.log(`Pedestrian collided with ${other.type}`); // Removed debug log
+            onCollide: (_other: PhysicsObject) => {
+                // console.log(`Pedestrian collided with ${_other.type}`); // Removed debug log
             }
         };
         PhysicsSystem.registerObject(pedestrianPhysicsObject);

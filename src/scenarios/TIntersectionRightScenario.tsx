@@ -7,11 +7,10 @@ import * as THREE from 'three'; // Import THREE for Vector3
 import { StraightRoad } from '../components/world/StraightRoad';
 import { Intersection } from '../components/world/Intersection';
 import { GiveWaySign } from '../components/world/GiveWaySign';
-import { StationaryAICar } from '../components/vehicle/StationaryAICar';
 import { type PhysicsObject, PhysicsSystem } from '../physics/PhysicsSystem';
 
 export const TIntersectionRightScenario: React.FC = () => {
-  const { setMessage, telemetry, passLevel, failLevel } = useGameStore();
+  const { setMessage, passLevel, failLevel } = useGameStore();
   const [hasStopped, setHasStopped] = useState(false);
   
   const hasIndicatedRef = useRef(false);

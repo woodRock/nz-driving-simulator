@@ -45,7 +45,7 @@ class PhysicsSystemManager {
     }
 
     // This method will be called every frame (e.g., from useFrame in App.tsx)
-    update(delta: number) {
+    update(_delta: number) {
         // Broad-phase: Simple iteration for now, optimize later if needed
         this.objects.forEach((obj1) => {
             this.objects.forEach((obj2) => {

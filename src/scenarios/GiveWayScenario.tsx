@@ -16,11 +16,8 @@ import { PhysicsSystem, type PhysicsObject } from '../physics/PhysicsSystem';
 // Horizontal road (Z=-10): lanes at Z=-7.5 and Z=-12.5
 // Vertical road (X=0): lanes at X=-2.5 and X=2.5
 
-
-// Removed AI_CAR_3 to reduce memory footprint
-
 export const GiveWayScenario: React.FC = () => {
-  const { setMessage, telemetry, passLevel, failLevel } = useGameStore();
+  const { setMessage, passLevel, failLevel } = useGameStore();
   const [finished, setFinished] = useState(false);
   const finishedRef = useRef(false);
 
@@ -59,8 +56,9 @@ export const GiveWayScenario: React.FC = () => {
   useFrame(() => {
     if (finished || finishedRef.current) return;
 
-    const { position, speed } = telemetry;
-
+    const telemetry = useGameStore.getState().telemetry;
+    const { position } = telemetry;
+    
     // Check completion (Crossed to the other side)
     if (position.z < -20) {
          passLevel();
@@ -104,7 +102,7 @@ export const GiveWayScenario: React.FC = () => {
         rotation={[0, Math.PI / 2, 0]} // Faces +X, towards the intersection
         color="orange" 
         indicatingLeft={true} // Explicitly set to not indicate left
-        indicatingRight={false} // Explicitly set to indicate right
+        indicatingRight={false} // Explicitly set to not indicate right
       />
 
       {/* Stationary AI Car: Approaching from right, indicating left turn (does not cross the player's path) */}
@@ -113,7 +111,7 @@ export const GiveWayScenario: React.FC = () => {
         rotation={[0, 3 *Math.PI / 2, 0]} // Faces +X, towards the intersection
         color="red" 
         indicatingLeft={true} // Explicitly set to not indicate left
-        indicatingRight={false} // Explicitly set to indicate right
+        indicatingRight={false} // Explicitly set to not indicate right
       />
 
       {/* Player Car */}
