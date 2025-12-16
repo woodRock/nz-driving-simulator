@@ -61,17 +61,10 @@ export const PedestrianScenario: React.FC = () => {
     const pedestrianCrossingZ = -20;
     const playerStopLineZ = -15; // Player needs to stop before this Z
     const roadWidth = 10; // Road is 10 units wide (X from -5 to 5)
-    const pedestrianRoadStartX = -roadWidth / 2; // -5
     const pedestrianRoadEndX = roadWidth / 2;    // 5
 
     // Get Pedestrian's actual position if ref is available
     let currentPedestrianX = 0;
-    let isPedestrianOnRoad = false; // Declare isPedestrianOnRoad here
-    if (pedestrianRef.current) {
-        currentPedestrianX = pedestrianRef.current.position.x; // Now directly from THREE.Mesh
-        // Check if pedestrian is actually on the road
-        isPedestrianOnRoad = (currentPedestrianX > pedestrianRoadStartX && currentPedestrianX < pedestrianRoadEndX);
-    }
     
     // Trigger pedestrian movement when player enters a zone
     if (!pedestrianActive && position.z < -5 && position.z > -15) { // Trigger zone before stop line
