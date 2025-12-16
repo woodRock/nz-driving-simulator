@@ -50,9 +50,9 @@ export const StationaryAICar: React.FC<StationaryAICarProps> = ({
             quaternion: initialQuaternion, // Use initial quaternion
             size: carSize,
             type: userData.type, // Use provided userData type, default to 'car'
-            onCollide: (other: PhysicsObject) => {
-                console.log(`StationaryAICar collided with ${other.type}`);
-            }
+            // onCollide: (other: PhysicsObject) => {
+            //     console.log(`StationaryAICar collided with ${other.type}`);
+            // }
         };
         PhysicsSystem.registerObject(stationaryAICarPhysicsObject);
 

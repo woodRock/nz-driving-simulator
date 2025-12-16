@@ -20,6 +20,7 @@ import { TrainCrossingScenario } from './scenarios/TrainCrossingScenario'; // Ne
 import { TIntersectionLeftOncomingScenario } from './scenarios/TIntersectionLeftOncomingScenario'; // New import
 import { PhysicsSystem } from './physics/PhysicsSystem'; // Custom PhysicsSystem import
 import { CyclistHazardScenario } from './scenarios/CyclistHazardScenario';
+import { PedestrianIslandScenario } from './scenarios/PedestrianIslandScenario'; // New import
 
 function Scene() {
   const { currentScenario, currentLevelIndex, levelStatus } = useGameStore();
@@ -47,6 +48,7 @@ function Scene() {
           {currentScenario === 'roundabout' && <RoundaboutScenario />}
           {currentScenario === 'stop-sign' && <StopSignScenario />}
           {currentScenario === 'pedestrian' && <PedestrianScenario />}
+          {currentScenario === 'pedestrian-island' && <PedestrianIslandScenario />} {/* New scenario */}
           {currentScenario === 'parking' && <ParallelParkingScenario />}
           {currentScenario === 'wellington' && <WellingtonScenario />}
           {currentScenario === 't-intersection-right' && <TIntersectionRightScenario />}

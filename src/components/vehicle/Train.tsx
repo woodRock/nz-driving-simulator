@@ -48,7 +48,6 @@ export const Train = React.memo(forwardRef<THREE.Group, TrainProps>(({
     const trainSize = new THREE.Vector3(3, 4, 20); // Longer and taller for a train
 
     useEffect(() => {
-        console.log(`Train ${physicsObjectId.current} mounted. initial position:`, startPos);
         if (!innerRef.current) return;
         hasCompletedCycle.current = false; // Reset on prop change or remount if needed, though scenario will re-render
 
@@ -70,7 +69,7 @@ export const Train = React.memo(forwardRef<THREE.Group, TrainProps>(({
         // Cleanup: unregister on unmount
         return () => {
             PhysicsSystem.unregisterObject(physicsObjectId.current);
-            console.log(`Train ${physicsObjectId.current} unmounted.`);
+            // console.log(`Train ${physicsObjectId.current} unmounted.`);
         };
     }, [startPos, endPos, speed, delay]); // Added dependencies to re-register if these props change
 
@@ -106,7 +105,6 @@ export const Train = React.memo(forwardRef<THREE.Group, TrainProps>(({
             innerRef.current.position.copy(end); // Ensure it's exactly at the end
             if (!hasCompletedCycle.current) {
                 hasCompletedCycle.current = true;
-                console.log(`Train ${physicsObjectId.current} completed cycle. Calling onCycleComplete.`);
                 onCycleComplete?.(); // Call the callback only once
             }
             // Manually update the PhysicsSystem object's position
@@ -120,11 +118,6 @@ export const Train = React.memo(forwardRef<THREE.Group, TrainProps>(({
         // Move to current position (if not completed yet)
         nextPos.lerpVectors(start, end, alpha); 
         innerRef.current.position.copy(nextPos);
-
-        // Debugging Train position
-        // if (state.clock.elapsedTime % 1 < state.clock.delta) { // Log approximately once per second
-        //     console.log(`Train ${physicsObjectId.current} Pos: X=${innerRef.current.position.x.toFixed(2)}, Z=${innerRef.current.position.z.toFixed(2)}`);
-        // }
         
         // Manually update the PhysicsSystem object's position and quaternion
         const physicsObject = PhysicsSystem.getObject(physicsObjectId.current);

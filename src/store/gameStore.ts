@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-export type ScenarioId = 'giveway' | 't-intersection' | 'roundabout' | 'stop-sign' | 'pedestrian' | 'parking' | 'wellington' | 't-intersection-right' | 't-intersection-give-way' | 'stop-sign-cross-traffic' | 'giveway-merge-traffic' | 'giveway-right-to-left' | 'four-way-give-way' | 'train-crossing' | 't-intersection-left-oncoming' | 'cyclist-hazard';
+export type ScenarioId = 'giveway' | 't-intersection' | 'roundabout' | 'stop-sign' | 'pedestrian' | 'pedestrian-island' | 'parking' | 'wellington' | 't-intersection-right' | 't-intersection-give-way' | 'stop-sign-cross-traffic' | 'giveway-merge-traffic' | 'giveway-right-to-left' | 'four-way-give-way' | 'train-crossing' | 't-intersection-left-oncoming' | 'cyclist-hazard';
 
 export interface ScenarioDef {
     id: ScenarioId;
@@ -10,6 +10,7 @@ export interface ScenarioDef {
 
 export const SCENARIOS: ScenarioDef[] = [
     { id: 'cyclist-hazard', title: 'Cyclist Hazard', description: 'Watch out for the cyclist ahead!' },
+    { id: 'pedestrian-island', title: 'Pedestrian Crossing (Island)', description: 'Stop until the pedestrian reaches the island, then proceed safely.' }, // New scenario
     { id: 't-intersection-right', title: 'T-Intersection (Right Turn)', description: 'Give way to ALL traffic. Turn Right. Watch for oncoming traffic and other turning vehicles!' },
     { id: 't-intersection-give-way', title: 'T-Intersection (Give Way)', description: 'Give way to traffic from your right. Go straight or turn left.' }, // New scenario
     { id: 'stop-sign-cross-traffic', title: 'Stop Sign (Cross Traffic)', description: 'Come to a complete stop and give way to cross traffic before proceeding.' }, // New scenario

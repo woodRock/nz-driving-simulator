@@ -95,7 +95,6 @@ export const TIntersectionRightScenario: React.FC = () => {
     // Give Way Line is roughly Z = -5.5. We check a zone around it.
     if (position.z < 0 && position.z > -10 && Math.abs(speed) < 0.1) { // Expanded zone
         if (!hasStopped) {
-            console.log("STOP DETECTED at Z:", position.z);
             setHasStopped(true);
         }
     }
@@ -103,8 +102,6 @@ export const TIntersectionRightScenario: React.FC = () => {
     // --- 3. INTERSECTION LOGIC ---
     // We only evaluate "Give Way" failures if the player enters the intersection (Z < -5.5)
     if (position.z < -5.5) { 
-        console.log("INTERSECTION LOGIC ACTIVE - hasStopped:", hasStopped, "isAICarInIntersectionArea:", isAICarInIntersectionArea, "distToHazard:", distToHazard.toFixed(2));
-        console.log('DEBUG: distToHazard:', distToHazard.toFixed(2), 'isAICarInIntersectionArea:', isAICarInIntersectionArea);    
         // FAIL CONDITION A: Ignoring the Stop
         // If player hasn't stopped, and AI car is in intersection area, and it's within a reasonable distance
         if (!hasStopped && isAICarInIntersectionArea && distToHazard < 15) { // Adjusted threshold to 15
