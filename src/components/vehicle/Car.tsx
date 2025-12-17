@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { useControls } from '../../hooks/useControls';
 import { useGameStore } from '../../store/gameStore';
 import { type PhysicsObject, PhysicsSystem } from '../../physics/PhysicsSystem';
+import { TerrainSystem } from '../../systems/TerrainSystem';
 
 interface CarProps {
   position?: [number, number, number];
@@ -142,7 +143,29 @@ export const Car: React.FC<CarProps> = ({ position = [0, 1, 0], rotation: initia
       const newForward = new THREE.Vector3(0, 0, -1).applyQuaternion(carQuaternionRef.current);
       linearVelocity.current.copy(newForward).multiplyScalar(currentSpeed);
       
-      carRef.current.position.add(linearVelocity.current.clone().multiplyScalar(delta));
+      const newPos = carRef.current.position.clone().add(linearVelocity.current.clone().multiplyScalar(delta));
+      
+      // Terrain Following
+      const terrainHeight = TerrainSystem.getHeight(newPos.x, newPos.z);
+      const groundHeight = terrainHeight !== null ? terrainHeight : 0;
+      
+      // Simple Suspension / Gravity
+      // Raycast down: dist = currentY - groundHeight
+      // Target hover height = 0.5
+      const targetHeight = groundHeight + 0.5;
+      
+      // Smoothly interpolate Y
+      // Using a simple lerp for stability, or could use spring force
+      // Lerp factor determines "stiffness"
+      // If snap is too hard, reduce factor.
+      
+      const yLerpFactor = 10.0 * delta; // Adjust stiffness
+      newPos.y = THREE.MathUtils.lerp(carRef.current.position.y, targetHeight, yLerpFactor);
+
+      // Prevent falling through ground
+      if (newPos.y < targetHeight - 0.2) newPos.y = targetHeight - 0.2;
+
+      carRef.current.position.copy(newPos);
 
       // --- VISUALS ---
       if (frontLeftWheelRef.current && frontRightWheelRef.current) {

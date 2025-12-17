@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'; // Import useState
 import { useGameStore, SCENARIOS } from '../store/gameStore';
 import { WaypointManager } from './WaypointManager';
+import { Minimap } from './UI/Minimap';
 
 export const UI: React.FC = () => {
     const {
@@ -211,7 +212,7 @@ export const UI: React.FC = () => {
         return (
           <div style={{
             position: 'absolute',
-            top: 0, left: 0, width: '100%',
+            top: 0, left: 0, width: '100%', height: '100%',
             padding: '20px',
             boxSizing: 'border-box',
             color: 'white',
@@ -230,6 +231,10 @@ export const UI: React.FC = () => {
                       {message}
                   </h3>
                 </div>
+                
+                {/* Minimap (Wellington Only) */}
+                {currentScenario === 'wellington' && <Minimap />}
+
                 <div style={{ pointerEvents: 'auto' }}>
                   <button onClick={togglePause} style={{ padding: '10px', cursor: 'pointer' }}>Pause</button>
                 </div>

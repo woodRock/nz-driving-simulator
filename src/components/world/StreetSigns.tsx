@@ -1,10 +1,11 @@
 
-import React, { useState, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Text } from '@react-three/drei';
 import * as THREE from 'three';
 import { latLonToMeters, MAP_CENTER_LAT, MAP_CENTER_LON, getChunkId, getChunkIdsAround } from '../../utils/geoUtils';
 import { useGameStore } from '../../store/gameStore';
+import { TerrainSystem } from '../../systems/TerrainSystem';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 
 interface StreetSignsProps {
     features: any[];
@@ -91,6 +92,14 @@ const SignPost = React.memo(({ position, rotation, roadName, crossRoadNames }: O
 export const StreetSigns = ({ features }: StreetSignsProps) => {
     const [visibleChunkIds, setVisibleChunkIds] = useState<string[]>([]);
     const lastChunkId = useRef<string | null>(null);
+    const [terrainVersion, setTerrainVersion] = useState(0);
+
+    useEffect(() => {
+        const unsubscribe = TerrainSystem.subscribe(() => {
+            setTerrainVersion(v => v + 1);
+        });
+        return () => { unsubscribe(); };
+    }, []);
 
     const chunkedSigns = useMemo(() => {
         if (!features || features.length === 0) return new Map<string, SignData[]>();
@@ -174,6 +183,10 @@ export const StreetSigns = ({ features }: StreetSignsProps) => {
                     .sub(dir.multiplyScalar(SETBACK))
                     .add(left.multiplyScalar(SIGN_OFFSET));
 
+                // Terrain Height Adjustment
+                const h = TerrainSystem.getHeight(pos.x, pos.z) ?? 0;
+                pos.y = h + 0.2; // Base of pole at ground level (plus tiny offset to avoid clipping)
+
                 // Rotation: Facing incoming traffic (opposite to dir)
                 // Or aligned with road?
                 // Standard: Blade 1 (Road Name) aligns with road. Blade 2 (Cross) aligns 90deg.
@@ -182,7 +195,7 @@ export const StreetSigns = ({ features }: StreetSignsProps) => {
                 const rotation: [number, number, number] = [0, angle, 0];
 
                 const signData: SignData = {
-                    position: [pos.x, 3, pos.z],
+                    position: [pos.x, pos.y + 3, pos.z], // Center of sign blades is at y+3 relative to base
                     rotation,
                     roadName,
                     crossRoadNames: crossRoads[0], // Take first cross road name for simplicity
@@ -217,7 +230,7 @@ export const StreetSigns = ({ features }: StreetSignsProps) => {
         
         return chunks;
 
-    }, [features]);
+    }, [features, terrainVersion]); // Re-calculate when terrain updates
 
     useFrame(() => {
         const { x, z } = useGameStore.getState().telemetry.position;
@@ -237,7 +250,7 @@ export const StreetSigns = ({ features }: StreetSignsProps) => {
                 if (!signs) return null;
                 return (
                     <group key={chunkId}>
-                        {signs.map(sign => (
+                        {signs.map((sign: SignData) => (
                             <SignPost
                                 key={sign.key}
                                 position={sign.position}

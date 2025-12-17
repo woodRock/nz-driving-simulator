@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Html } from '@react-three/drei';
 import { latLonToMeters, MAP_CENTER_LAT, MAP_CENTER_LON } from '../../utils/geoUtils';
 import type { Waypoint } from '../../store/gameStore';
+import { TerrainSystem } from '../../systems/TerrainSystem';
 
 interface WaypointMarkerProps {
     waypoint: Waypoint;
@@ -9,9 +10,22 @@ interface WaypointMarkerProps {
 
 export const WaypointMarker: React.FC<WaypointMarkerProps> = ({ waypoint }) => {
     const { x, z } = latLonToMeters(waypoint.lat, waypoint.lon, MAP_CENTER_LAT, MAP_CENTER_LON);
+    const [y, setY] = useState(0);
+
+    useEffect(() => {
+        const updateHeight = () => {
+            const h = TerrainSystem.getHeight(x, z);
+            if (h !== null) setY(h);
+        };
+
+        updateHeight(); // Initial check
+        
+        const unsubscribe = TerrainSystem.subscribe(updateHeight);
+        return () => { unsubscribe(); };
+    }, [x, z]);
 
     return (
-        <group position={[x, 0, z]}>
+        <group position={[x, y, z]}>
             {/* Visual Marker (Beacon) */}
             <mesh position={[0, 10, 0]}>
                 <cylinderGeometry args={[0.5, 0.5, 20, 8]} />

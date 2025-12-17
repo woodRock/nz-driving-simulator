@@ -17,13 +17,9 @@ export const WaypointManager: React.FC = () => {
             // Use Nominatim API to geocode address
             // Bounding box for Wellington Region roughly
             const viewbox = '174.6,-41.2,175.0,-41.4';
-            const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=1&viewbox=${viewbox}&bounded=1`;
+            const url = `/api-nominatim/search?q=${encodeURIComponent(address)}&format=json&limit=1&viewbox=${viewbox}&bounded=1&addressdetails=1`;
             
-            const response = await fetch(url, {
-                headers: {
-                    'User-Agent': 'NZDrivingSimulator/1.0'
-                }
-            });
+            const response = await fetch(url);
 
             if (!response.ok) throw new Error('Search failed');
             
@@ -31,9 +27,29 @@ export const WaypointManager: React.FC = () => {
             
             if (data && data.length > 0) {
                 const result = data[0];
+                
+                // Determine the best name to display
+                let displayName = result.name || result.display_name.split(',')[0]; // Default to place name or first part of display name
+
+                // If address details are available, try to format as "Number Street" if it's a specific address
+                if (result.address) {
+                    const { road, house_number } = result.address;
+                    if (road && house_number) {
+                        displayName = `${house_number} ${road}`;
+                    } else if (road) {
+                        displayName = road;
+                    }
+                    // If the user searched for a specific place (e.g., "Te Papa"), result.name usually holds that. 
+                    // If result.name is empty, we fall back to address. 
+                    // However, we want to prioritize the specific place name if it exists and isn't just the road name.
+                    if (result.name && result.name !== road && result.name !== house_number) {
+                         displayName = result.name;
+                    }
+                }
+
                 const newWaypoint = {
                     id: Math.random().toString(36).substr(2, 9),
-                    name: result.display_name.split(',')[0], // Use first part of address as name
+                    name: displayName,
                     lat: parseFloat(result.lat),
                     lon: parseFloat(result.lon)
                 };

@@ -2,6 +2,7 @@ import React, { useRef, useMemo, useState, useEffect, forwardRef, useImperativeH
 import * as THREE from 'three';
 import { useFrame } from '@react-three/fiber'; 
 import { type PhysicsObject, PhysicsSystem } from '../../physics/PhysicsSystem'; 
+import { TerrainSystem } from '../../systems/TerrainSystem';
 
 interface AICarProps {
     startPos?: [number, number, number]; 
@@ -170,6 +171,12 @@ export const AICar = React.memo(forwardRef<THREE.Group, AICarProps>(({
 
         if (nextLeft !== autoIndicating.left || nextRight !== autoIndicating.right) {
             setAutoIndicating({ left: nextLeft, right: nextRight });
+        }
+
+        // Terrain Snapping
+        const terrainHeight = TerrainSystem.getHeight(nextPosition.x, nextPosition.z);
+        if (terrainHeight !== null) {
+            nextPosition.y = terrainHeight + 0.5;
         }
 
         innerRef.current.position.copy(nextPosition);
