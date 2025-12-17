@@ -31,8 +31,8 @@ const SignPost = React.memo(({ position, rotation, roadName, crossRoadNames }: O
                 <meshStandardMaterial color="#555" />
             </mesh>
             
-            {/* Blade 1: Current Road (Parallel to view) */}
-            <group position={[0, 0.8, 0]}>
+            {/* Blade 1: Current Road (Parallel to road) */}
+            <group position={[0, 0.8, 0]} rotation={[0, Math.PI / 2, 0]}>
                 <mesh>
                     <boxGeometry args={[1.8, 0.4, 0.05]} />
                     <meshStandardMaterial color="#006633" />
@@ -58,8 +58,8 @@ const SignPost = React.memo(({ position, rotation, roadName, crossRoadNames }: O
                 </Text>
             </group>
 
-            {/* Blade 2: Cross Road (Perpendicular) */}
-            <group position={[0, 1.3, 0]} rotation={[0, Math.PI / 2, 0]}>
+            {/* Blade 2: Cross Road (Perpendicular to road) */}
+            <group position={[0, 1.3, 0]}>
                 <mesh>
                     <boxGeometry args={[1.8, 0.4, 0.05]} />
                     <meshStandardMaterial color="#006633" />

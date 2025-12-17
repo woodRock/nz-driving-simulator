@@ -11,7 +11,10 @@ import * as THREE from 'three';
 import { type PhysicsObject, PhysicsSystem } from '../physics/PhysicsSystem';
 
 export const GiveWayRightToLeftScenario: React.FC = () => {
-  const { setMessage, passLevel, failLevel } = useGameStore();
+  const setMessage = useGameStore((state) => state.setMessage);
+  const passLevel = useGameStore((state) => state.passLevel);
+  const failLevel = useGameStore((state) => state.failLevel);
+
   const [finished, setFinished] = useState(false);
   const finishedRef = useRef(false);
 
@@ -49,73 +52,80 @@ export const GiveWayRightToLeftScenario: React.FC = () => {
     };
   }, [failLevel]);
 
-      useFrame(() => {
-      if (finished || finishedRef.current) return;
-  
-      const telemetry = useGameStore.getState().telemetry;
-  
-      if (!telemetry || !telemetry.position) return;
-  
-      const { position } = telemetry;
-      const z = position.z;
-      const x = position.x;
-  
-          // --- 1. TRACK AI CAR ---
-          let aiCarX = -50; // Default far away
-          let aiCarZ = -10; // Default intersection Z
-          let distToHazard = 10; // Default safe
-          let isAICarInIntersectionArea = false; // Dynamic check for AI car's hazard status
-      
-          if (aiCarRef.current) {
-              aiCarX = aiCarRef.current.position.x; 
-              aiCarZ = aiCarRef.current.position.z;
-              
-              distToHazard = Math.sqrt(
-                  Math.pow(x - aiCarX, 2) + 
-                  Math.pow(z - aiCarZ, 2)
-              );
-      
-              // AI car moves from X = 15 to X = -15 across the intersection (main road)
-              // Consider AI car a hazard if it's within a wider zone around the intersection.
-              if (aiCarX < 10 && aiCarX > -10) { 
-                  isAICarInIntersectionArea = true;
-              }
-          }
-          // --- 2. PLAYER LOGIC ---
-          // Player starts near the give way line, primary task is to wait for AI car
-      
-          // --- 3. INTERSECTION LOGIC ---
-          // We only evaluate "Give Way" failures if the player enters the intersection (Z < -1)
-          if (z < -1) { 
-              // FAIL CONDITION A: Dangerous Cut-off
-              // If player moves into intersection when AI car is a hazard
-              if (isAICarInIntersectionArea && distToHazard < 8) { // Adjusted threshold for even more leeway
-                   failLevel('You entered the intersection without giving way to cross traffic!'); 
-                   finishedRef.current = true;
-                   setFinished(true);
-                   return;
-              }
-          }    // Success Condition: Player successfully went straight after AI car has passed (or is safely far away)
-    if (z < -10 && x < 5 && x > -5) { // Went straight
+  useFrame(() => {
+    if (finished || finishedRef.current) return;
+
+    const telemetry = useGameStore.getState().telemetry;
+
+    if (!telemetry || !telemetry.position) return;
+
+    const { position, speed, indicators } = telemetry;
+    const z = position.z;
+    const x = position.x;
+
+    // --- 1. TRACK AI CAR ---
+    let aiCarX = -50; // Default far away
+    let aiCarZ = -10; // Default intersection Z
+    let distToHazard = 10; // Default safe
+    let isAICarInIntersectionArea = false; // Dynamic check for AI car's hazard status
+
+    if (aiCarRef.current) {
+        aiCarX = aiCarRef.current.position.x; 
+        aiCarZ = aiCarRef.current.position.z;
+        
+        distToHazard = Math.sqrt(
+            Math.pow(x - aiCarX, 2) + 
+            Math.pow(z - aiCarZ, 2)
+        );
+
+        // AI car moves from X = 15 to X = -15 across the intersection (main road)
+        // Consider AI car a hazard if it's within a wider zone around the intersection.
+        if (aiCarX < 10 && aiCarX > -10) { 
+            isAICarInIntersectionArea = true;
+        }
+    }
+    // --- 2. PLAYER LOGIC ---
+    // Player starts near the give way line, primary task is to wait for AI car
+
+    // --- 3. INTERSECTION LOGIC ---
+    // We only evaluate "Give Way" failures if the player enters the intersection (Z < -1)
+    if (z < -1) { 
+        // FAIL CONDITION A: Dangerous Cut-off
+        // If player moves into intersection when AI car is a hazard
+        if (isAICarInIntersectionArea && distToHazard < 4) { // Adjusted threshold for even more leeway
+            failLevel('You entered the intersection without giving way to cross traffic!'); 
+            finishedRef.current = true;
+            setFinished(true);
+            return;
+        }
+    }    
+
+    // Success Condition: Player successfully turned right
+    if (x > 10) { // Completed turn
         // Ensure AI car is far enough away if it was ever a hazard
-        if (!isAICarInIntersectionArea || distToHazard > 8) { // Use distToHazard directly
-            passLevel();
+        if (!isAICarInIntersectionArea || distToHazard > 8) { 
+            if (indicators.right) {
+                passLevel();
+            } else {
+                failLevel('You forgot to indicate right!');
+            }
             finishedRef.current = true;
             setFinished(true);
         }
     } 
-    // Fail Condition: Turned Left or Right, or Drove off road
-    if (x < -10 && z < -5) { // Turned left
-        failLevel('You turned left! You were supposed to go straight.');
+
+    // Fail Condition: Turned Left or Went Straight or Drove off road
+    if (x < -10) { // Turned left
+        failLevel('You turned left! You were supposed to go right.');
         finishedRef.current = true;
         setFinished(true);
     }
-    if (x > 10 && z < -5) { // Turned right
-        failLevel('You turned right! You were supposed to go straight.');
+    if (z < -15 && x < 5 && x > -5) { // Went straight too far  
+        failLevel('You went straight! You were supposed to turn right.');
         finishedRef.current = true;
         setFinished(true);
     }
-    if (z < -30 || x < -15 || x > 15) { // Drove off road
+    if (z < -30 || z > 20 || Math.abs(x) > 20) { // Drove off road
         failLevel('You drove off the road!');
         finishedRef.current = true;
         setFinished(true);
@@ -156,7 +166,7 @@ export const GiveWayRightToLeftScenario: React.FC = () => {
       />
 
       {/* Player Car */}
-      <Car position={[-2.5, 1, -0.5]} /> {/* Player starts at give-way line */}
+      <Car position={[-2.5, 1, 12]} /> {/* Player starts at give-way line */}
     </group>
   );
 };

@@ -90,9 +90,9 @@ export const FourWayGiveWayScenario: React.FC = () => {
     }
 
     // --- LOGIC ---
-    // Stop Detection: Player must stop at give way line (Z = 0 approx)
-    const playerGiveWayLineZ = 0; // Aligned with actual Give Way sign
-    const playerAtStopLine = (z < playerGiveWayLineZ + 1 && z > playerGiveWayLineZ - 5); // Wider zone for stopping around the line
+    // Stop Detection: Player must stop at give way line (Z = -5 approx)
+    const playerGiveWayLineZ = -5; // Aligned with actual Give Way sign
+    const playerAtStopLine = (z < playerGiveWayLineZ + 5 && z > playerGiveWayLineZ - 5); // Wider zone for stopping around the line
 
     if (playerAtStopLine && Math.abs(speed) < 1.1) { // Lenient speed matching physics
         if (!useGameStore.getState().flags['fourWayStopped']) {
@@ -160,13 +160,13 @@ export const FourWayGiveWayScenario: React.FC = () => {
       <Intersection position={[0, 0, -10]} />
       
       {/* Signs */}
-      <GiveWaySign position={[-5.5, 0, 0]} rotation={[0, 0, 0]} /> {/* Give Way for player, moved back */}
+      <GiveWaySign position={[-5.5, 0, -5]} rotation={[0, 0, 0]} /> {/* Give Way for player, moved back */} 
 
       {/* Moving AI Traffic (from right, turning left across player's path) */}
       <AICar 
         ref={aiCarRef} 
         startPos={[15, 0.2, -7.5]} // Starts right of intersection, on main road
-        endPos={[ -2, 0.2, -22.5]} // Ends left after turning across player's path
+        endPos={[-15, 0.2, -7.5]}   // Ends left of intersection
         speed={8} 
         delay={0} 
         color="red" 
@@ -177,15 +177,13 @@ export const FourWayGiveWayScenario: React.FC = () => {
           new THREE.Vector3(-2, 0.2, -15), // Mid-turn point
           new THREE.Vector3(-2, 0.2, -20), // Mid-turn point
           new THREE.Vector3(-2, 0.2, -22.5), // Mid-turn point
-          // new THREE.Vector3(-7.5, 0.2, -17), // Exiting intersection, completing turn
-          // new THREE.Vector3(-15, 0.2, -17), // Straightening out
         ]}
         indicatingRight={true} // Indicate right before turn
         indicatingLeft={false}
       />
 
       {/* Player Car */}
-      <Car position={[-2.5, 1, 5]} /> {/* Player starts approaching Give Way */}
+      <Car position={[-2.5, 1, 7.5]} /> {/* Player starts approaching Give Way */}
     </group>
   );
 };

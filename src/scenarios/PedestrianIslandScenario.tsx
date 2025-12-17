@@ -120,7 +120,6 @@ export const PedestrianIslandScenario: React.FC = () => {
 
     // Stop Detection: Player must stop before playerStopLineZ if pedestrian is present
     const playerAtStopLine = (position.z < playerStopLineZ + 5 && position.z > playerStopLineZ - 5); // Much wider window around the stop line
-    console.log('DEBUG (Stop Detection): Z:', position.z.toFixed(2), 'Speed:', playerSpeed.toFixed(2), 'pedActive:', pedestrianActive, 'atStopLine:', playerAtStopLine, 'hasStopped:', hasStopped);
     if (pedestrianActive && !hasStopped && playerAtStopLine && playerSpeed < 1.5) { // Pedestrian needs to be active, even more lenient speed
         setHasStopped(true);
         setMessage('STOP DETECTED!'); // Confirm stop
@@ -144,7 +143,6 @@ export const PedestrianIslandScenario: React.FC = () => {
     
     // Pass condition: Player successfully passed the pedestrian crossing zone
     if (position.z < pedestrianCrossingZ - 10) { // Player is well past the crossing (Z < -30)
-        console.log('DEBUG (Pass Check): pedActive:', pedestrianActive, 'hasStopped:', hasStopped, 'pedCrossed:', pedestrianCrossedRef.current);
         if (pedestrianActive) { // Only evaluate these if the pedestrian was activated
             if (!hasStopped) { 
                 failLevel('You did not stop for the pedestrian!');

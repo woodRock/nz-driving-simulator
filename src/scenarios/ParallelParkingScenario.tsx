@@ -7,7 +7,10 @@ import * as THREE from 'three';
 import { type PhysicsObject, PhysicsSystem } from '../physics/PhysicsSystem';
 
 export const ParallelParkingScenario: React.FC = () => {
-  const { setMessage, telemetry, failLevel, passLevel } = useGameStore();
+  const setMessage = useGameStore((state) => state.setMessage);
+  const failLevel = useGameStore((state) => state.failLevel);
+  const passLevel = useGameStore((state) => state.passLevel);
+  
   const [finished, setFinished] = useState(false);
   const startTime = useRef(Date.now());
 
@@ -86,15 +89,20 @@ export const ParallelParkingScenario: React.FC = () => {
 
   useFrame(() => {
     if (finished) return;
+    const telemetry = useGameStore.getState().telemetry;
     const { position, speed } = telemetry;
 
     // Target Spot: x: -4, z: -12 (Left side of road)
     // Box size: 3x8
     // Bounds: x [-5.5, -2.5], z [-16, -8]
+    // Car Size: 2x4 (Half: 1, 2)
+    // Required Center Position to be fully inside:
+    // X: [-5.5 + 1, -2.5 - 1] = [-4.5, -3.5]
+    // Z: [-16 + 2, -8 - 2] = [-14, -10]
     
-    if (speed < 0.1 && Date.now() - startTime.current > 3000) {
-        // Checking if parked
-        if (position.x > -5.5 && position.x < -2.5 && position.z > -16 && position.z < -8) { // Updated Z bounds
+    if (Math.abs(speed) < 0.1 && Date.now() - startTime.current > 3000) {
+        // Checking if parked strictly within lines
+        if (position.x >= -4.5 && position.x <= -3.5 && position.z >= -14 && position.z <= -10) {
             passLevel();
             setFinished(true);
         }

@@ -23,11 +23,11 @@ import { CyclistHazardScenario } from './scenarios/CyclistHazardScenario';
 import { PedestrianIslandScenario } from './scenarios/PedestrianIslandScenario'; // New import
 
 function Scene() {
-  const { currentScenario, currentLevelIndex, levelStatus } = useGameStore();
+  const { currentScenario, currentLevelIndex, levelStatus, retryCount } = useGameStore();
 
   // Unique key to force re-mount when retrying (status goes back to 'playing')
   // We combine scenario ID and status to ensure a fresh start on retry.
-  const key = `${currentScenario}-${levelStatus === 'playing' ? 'play' : 'stop'}-${currentLevelIndex}`;
+  const key = `${currentScenario}-${currentLevelIndex}-${retryCount}`;
 
   // Update custom physics system every frame
   useFrame((_, delta) => {
