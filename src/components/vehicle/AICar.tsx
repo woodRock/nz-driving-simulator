@@ -176,9 +176,13 @@ export const AICar = React.memo(forwardRef<THREE.Group, AICarProps>(({
         const realForward = new THREE.Vector3().crossVectors(currentUp.current, rightVec).normalize();
         
         // Basis: X=Right, Y=Up, Z=Forward. 
-        // We want +Z to be Forward. So Z should be realForward.
-        const rotationMatrix = new THREE.Matrix4().makeBasis(rightVec, currentUp.current, realForward);
+        // We want +X to be World Right, +Y to World Up, +Z to World Forward.
+        // Since rightVec (calculated as pathDirection x currentUp) is actually a 'Left' vector,
+        // we need to negate it to get the World Right vector.
+        const rotationMatrix = new THREE.Matrix4().makeBasis(rightVec.negate(), currentUp.current, realForward);
         const targetQuat = new THREE.Quaternion().setFromRotationMatrix(rotationMatrix);
+        const rotation180 = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI);
+        targetQuat.multiply(rotation180); // Apply 180 degree rotation
 
         innerRef.current.position.copy(nextPositionFlat);
         innerRef.current.quaternion.copy(targetQuat);
