@@ -8,6 +8,7 @@ import { latLonToMeters, MAP_CENTER_LAT, MAP_CENTER_LON } from '../utils/geoUtil
 import { StreetSigns } from '../components/world/StreetSigns';
 import { MapLayer } from '../components/world/MapLayer';
 import { OnlineSatelliteLayer } from '../components/world/OnlineSatelliteLayer';
+import { BuildingLayer } from '../components/world/BuildingLayer';
 import { TrafficSystem } from '../components/world/TrafficSystem';
 import { WaypointMarker } from '../components/world/WaypointMarker';
 import { RoadSystem } from '../systems/RoadSystem';
@@ -76,6 +77,9 @@ export const WellingtonScenario: React.FC = () => {
     <group>
       {/* Map Layer (Satellite or OSM) */}
       {mapType === 'satellite' ? <OnlineSatelliteLayer /> : <MapLayer />}
+
+      {/* Buildings Layer */}
+      <BuildingLayer />
 
       {/* Roads Visuals */}
       <Roads features={features} />
