@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useGameStore } from '../store/gameStore';
 
 // Client-side cache for Nominatim search results
-const searchCache = new Map<string, any[]>();
+const searchCache = new Map<string, any>();
 
 export const WaypointManager: React.FC = () => {
     const { addWaypoint, removeWaypoint, waypoints } = useGameStore();
@@ -16,7 +16,12 @@ export const WaypointManager: React.FC = () => {
         // Check cache first
         const cachedData = searchCache.get(address.trim().toLowerCase());
         if (cachedData) {
-            processPhotonResult(cachedData);
+            // Check if it's Photon (FeatureCollection object) or Nominatim (Array)
+            if (!Array.isArray(cachedData) && cachedData.features) {
+                processPhotonResult(cachedData);
+            } else if (Array.isArray(cachedData)) {
+                processNominatimResult(cachedData);
+            }
             return;
         }
 
@@ -24,27 +29,72 @@ export const WaypointManager: React.FC = () => {
         setError(null);
 
         try {
-            // Use Photon API (based on OSM) to avoid strict Nominatim CORS/Policy issues
-            // Bbox: minLon, minLat, maxLon, maxLat
+            // Attempt 1: Photon API
             const bbox = '174.6,-41.4,175.0,-41.2'; 
-            const url = `https://photon.komoot.io/api/?q=${encodeURIComponent(address)}&bbox=${bbox}&limit=1`;
+            const photonUrl = `https://photon.komoot.io/api/?q=${encodeURIComponent(address)}&bbox=${bbox}&limit=1`;
             
-            const response = await fetch(url);
-
-            if (!response.ok) throw new Error('Search failed');
-            
+            const response = await fetch(photonUrl);
+            if (!response.ok) throw new Error('Photon failed');
             const data = await response.json();
-            searchCache.set(address.trim().toLowerCase(), data); // Store raw FeatureCollection
-
+            
+            searchCache.set(address.trim().toLowerCase(), data);
             processPhotonResult(data);
-        } catch (e) {
-            console.error(e);
-            setError('Failed to fetch coordinates.');
+
+        } catch (photonError) {
+            console.warn('Photon API failed, falling back to Nominatim', photonError);
+            
+            // Attempt 2: Nominatim API (Fallback)
+            try {
+                const viewbox = '174.6,-41.2,175.0,-41.4';
+                const email = 'woodrock_sim@example.com'; // Valid email format
+                const nominatimUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=1&viewbox=${viewbox}&bounded=1&addressdetails=1&email=${email}`;
+                
+                const response = await fetch(nominatimUrl);
+                if (!response.ok) throw new Error('Nominatim failed');
+                const data = await response.json();
+
+                searchCache.set(address.trim().toLowerCase(), data);
+                processNominatimResult(data);
+
+            } catch (nominatimError) {
+                console.error(nominatimError);
+                setError('Failed to fetch coordinates from both providers.');
+            }
         } finally {
             // Enforce 1-second delay 
             setTimeout(() => {
                 setLoading(false);
             }, 1000);
+        }
+    };
+
+    const processNominatimResult = (data: any[]) => {
+        if (data && data.length > 0) {
+            const result = data[0];
+            let displayName = result.name || result.display_name.split(',')[0];
+
+            if (result.address) {
+                const { road, house_number } = result.address;
+                if (road && house_number) {
+                    displayName = `${house_number} ${road}`;
+                } else if (road) {
+                    displayName = road;
+                }
+                if (result.name && result.name !== road && result.name !== house_number) {
+                        displayName = result.name;
+                }
+            }
+
+            const newWaypoint = {
+                id: Math.random().toString(36).substr(2, 9),
+                name: displayName,
+                lat: parseFloat(result.lat),
+                lon: parseFloat(result.lon)
+            };
+            addWaypoint(newWaypoint);
+            setAddress('');
+        } else {
+            setError('No results found for this address in Wellington.');
         }
     };
 

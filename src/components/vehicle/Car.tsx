@@ -5,6 +5,7 @@ import { useControls } from '../../hooks/useControls';
 import { useGameStore } from '../../store/gameStore';
 import { type PhysicsObject, PhysicsSystem } from '../../physics/PhysicsSystem';
 import { TerrainSystem } from '../../systems/TerrainSystem';
+import { RoadSystem } from '../../systems/RoadSystem';
 
 interface CarProps {
   position?: [number, number, number];
@@ -49,11 +50,14 @@ export const Car: React.FC<CarProps> = ({ position = [0, 1, 0], rotation: initia
 
             if (other.type === 'roadBoundary') {
                 failLevel('You drove off the road!');
-            } else if (other.type === 'aiCar' || other.type === 'stationaryAICar') {
+            }
+            else if (other.type === 'aiCar' || other.type === 'stationaryAICar') {
                 failLevel('You crashed into another car!');
-            } else if (other.type === 'pedestrian') {
+            }
+            else if (other.type === 'pedestrian') {
                 failLevel('You hit a pedestrian! major fail.');
-            } else if (other.type === 'cyclist') {
+            }
+            else if (other.type === 'cyclist') {
                 failLevel('You hit a cyclist! major fail.');
             }
         }
@@ -69,6 +73,9 @@ export const Car: React.FC<CarProps> = ({ position = [0, 1, 0], rotation: initia
       if (!carRef.current) return;
       if (levelStatus !== 'playing') return; // Stop processing physics if failed/paused
 
+      // Clamp delta to prevent physics explosions during lag spikes
+      const dt = Math.min(delta, 0.1);
+
       const { forward, backward, left, right, brake, indicateLeft, indicateRight } = controls;
 
       // Car physics constants
@@ -78,7 +85,7 @@ export const Car: React.FC<CarProps> = ({ position = [0, 1, 0], rotation: initia
       const brakingDeceleration = 50;
       const frictionDeceleration = 10;
       const maxSteeringAngle = Math.PI / 6; 
-      const steeringSpeed = 2.0 * delta; 
+      const steeringSpeed = 2.0 * dt; 
       const wheelbase = 3.0; 
       const wheelTurnVisualFactor = 1.0; 
 
@@ -103,21 +110,21 @@ export const Car: React.FC<CarProps> = ({ position = [0, 1, 0], rotation: initia
 
       // --- MOVEMENT ---
       if (forward) {
-          currentSpeed += acceleration * delta;
+          currentSpeed += acceleration * dt;
       } else if (backward) {
-          currentSpeed -= acceleration * delta;
+          currentSpeed -= acceleration * dt;
       }
 
       if (brake) {
-          if (currentSpeed > 0) currentSpeed -= brakingDeceleration * delta;
-          else if (currentSpeed < 0) currentSpeed += brakingDeceleration * delta;
+          if (currentSpeed > 0) currentSpeed -= brakingDeceleration * dt;
+          else if (currentSpeed < 0) currentSpeed += brakingDeceleration * dt;
           if (Math.abs(currentSpeed) < 1) currentSpeed = 0; // Full stop
       }
 
       // Friction
       if (!forward && !backward && !brake) {
-          if (Math.abs(currentSpeed) > frictionDeceleration * delta) {
-              currentSpeed -= Math.sign(currentSpeed) * frictionDeceleration * delta;
+          if (Math.abs(currentSpeed) > frictionDeceleration * dt) {
+              currentSpeed -= Math.sign(currentSpeed) * frictionDeceleration * dt;
           } else {
               currentSpeed = 0;
           }
@@ -129,7 +136,7 @@ export const Car: React.FC<CarProps> = ({ position = [0, 1, 0], rotation: initia
       if (Math.abs(currentSpeed) > 0.1) {
           const turnRadius = wheelbase / Math.tan(currentSteeringAngle.current);
           // angular velocity = v / r
-          const rotationAmount = (currentSpeed / turnRadius) * delta;
+          const rotationAmount = (currentSpeed / turnRadius) * dt;
           
           if (Math.abs(rotationAmount) > 0.0001) {
             const rotQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), rotationAmount);
@@ -143,7 +150,7 @@ export const Car: React.FC<CarProps> = ({ position = [0, 1, 0], rotation: initia
       const newForward = new THREE.Vector3(0, 0, -1).applyQuaternion(carQuaternionRef.current);
       linearVelocity.current.copy(newForward).multiplyScalar(currentSpeed);
       
-      const newPos = carRef.current.position.clone().add(linearVelocity.current.clone().multiplyScalar(delta));
+      const newPos = carRef.current.position.clone().add(linearVelocity.current.clone().multiplyScalar(dt));
       
       // Terrain Following
       const terrainHeight = TerrainSystem.getHeight(newPos.x, newPos.z);
@@ -154,20 +161,34 @@ export const Car: React.FC<CarProps> = ({ position = [0, 1, 0], rotation: initia
       let targetHeight = carRef.current.position.y; 
       
       if (terrainHeight !== null) {
-          // Add suspension/wheel radius offset
-          targetHeight = terrainHeight + 0.5;
-      } else {
-          // Optional: Apply simple gravity if no terrain? 
-          // For now, staying level is smoother than falling into void.
+          // Check road proximity for layer snapping
+          const distToRoad = RoadSystem.getDistanceToRoad(newPos.x, newPos.z);
+          
+          // Road visual is at h + 0.15
+          // Car Body (origin) is at y. Wheel bottoms at y - 0.25.
+          // To put wheels on Road (h+0.15): y - 0.25 = h + 0.15 => y = h + 0.40
+          // To put wheels on Terrain (h): y - 0.25 = h => y = h + 0.25
+          
+          let offset = 0.25; // Default (off-road)
+          
+          if (distToRoad < 6.0) {
+              offset = 0.40; // On road
+          } else if (distToRoad < 8.0) {
+              // Smooth ramp
+              const t = (distToRoad - 6.0) / 2.0; // 0..1
+              offset = 0.40 * (1 - t) + 0.25 * t;
+          }
+
+          targetHeight = terrainHeight + offset;
       }
       
       // Smoothly interpolate Y
-      const yLerpFactor = 10.0 * delta; 
+      const yLerpFactor = Math.min(1.0, 10.0 * dt); 
       newPos.y = THREE.MathUtils.lerp(carRef.current.position.y, targetHeight, yLerpFactor);
 
       // Hard floor only if we have terrain data to respect
-      if (terrainHeight !== null && newPos.y < terrainHeight + 0.3) {
-          newPos.y = terrainHeight + 0.3;
+      if (terrainHeight !== null && newPos.y < terrainHeight + 0.2) {
+          newPos.y = terrainHeight + 0.2;
       }
 
       carRef.current.position.copy(newPos);

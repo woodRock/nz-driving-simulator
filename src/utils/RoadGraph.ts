@@ -168,5 +168,50 @@ export class RoadGraph {
 
         return pathPoints;
     }
+
+    public getDistanceToRoad(x: number, z: number): number {
+        const chunkId = getChunkId(x, z);
+        const parts = chunkId.split(',');
+        if (parts.length !== 2) return Infinity;
+        
+        const cx = Number(parts[0]);
+        const cz = Number(parts[1]);
+        
+        let minDist = Infinity;
+
+        // Check 3x3 chunks
+        for(let dx = -1; dx <= 1; dx++) {
+            for(let dz = -1; dz <= 1; dz++) {
+                const id = `${cx+dx},${cz+dz}`;
+                const nodes = this.chunkedNodes.get(id);
+                if (!nodes) continue;
+
+                for (const node of nodes) {
+                    for (const edge of node.edges) {
+                        for (let i = 0; i < edge.points.length - 1; i++) {
+                             const p1 = edge.points[i];
+                             const p2 = edge.points[i+1];
+                             const d = this.distToSegment({x, z}, p1, p2);
+                             if (d < minDist) minDist = d;
+                        }
+                    }
+                }
+            }
+        }
+        return minDist;
+    }
+
+    private distToSegment(p: {x: number, z: number}, v: THREE.Vector3, w: THREE.Vector3) {
+        const l2 = (v.x - w.x)**2 + (v.z - w.z)**2;
+        if (l2 === 0) return Math.sqrt((p.x - v.x)**2 + (p.z - v.z)**2);
+        
+        let t = ((p.x - v.x) * (w.x - v.x) + (p.z - v.z) * (w.z - v.z)) / l2;
+        t = Math.max(0, Math.min(1, t));
+        
+        const projX = v.x + t * (w.x - v.x);
+        const projZ = v.z + t * (w.z - v.z);
+        
+        return Math.sqrt((p.x - projX)**2 + (p.z - projZ)**2);
+    }
 }
 

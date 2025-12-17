@@ -10,6 +10,7 @@ import { MapLayer } from '../components/world/MapLayer';
 import { OnlineSatelliteLayer } from '../components/world/OnlineSatelliteLayer';
 import { TrafficSystem } from '../components/world/TrafficSystem';
 import { WaypointMarker } from '../components/world/WaypointMarker';
+import { RoadSystem } from '../systems/RoadSystem';
 
 export const WellingtonScenario: React.FC = () => {
   const { setMessage, setScore, failLevel, mapType, waypoints } = useGameStore();
@@ -41,6 +42,7 @@ export const WellingtonScenario: React.FC = () => {
           if (!response.ok) throw new Error('Failed to fetch roads');
           const data = await response.json();
           setFeatures(data.features);
+          RoadSystem.init(data.features);
         } catch (e) {
             console.error(e);
         }

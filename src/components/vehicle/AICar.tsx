@@ -31,7 +31,7 @@ export const AICar = React.memo(forwardRef<THREE.Group, AICarProps>(({
     useImperativeHandle(ref, () => innerRef.current!);
 
     const [blink, setBlink] = useState(false);
-    const [autoIndicating, setAutoIndicating] = useState({ left: false, right: false });
+    const [autoIndicating] = useState({ left: false, right: false });
     
     const timeElapsed = useRef(0);
     const isDelaying = useRef(true);
@@ -39,6 +39,9 @@ export const AICar = React.memo(forwardRef<THREE.Group, AICarProps>(({
 
     const currentPathIndex = useRef(0);
     const segmentStartTime = useRef(0); 
+
+    // Track Up vector for smooth terrain transitions
+    const currentUp = useRef(new THREE.Vector3(0, 1, 0));
 
     const { fullPath, totalPathDistance } = useMemo(() => {
         let path: THREE.Vector3[] = [];
@@ -112,74 +115,65 @@ export const AICar = React.memo(forwardRef<THREE.Group, AICarProps>(({
         const elapsedTimeInSegment = state.clock.getElapsedTime() - segmentStartTime.current;
         let segmentAlpha = Math.min(1, elapsedTimeInSegment / segmentDuration);
 
-        const nextPosition = new THREE.Vector3().lerpVectors(currentSegmentStart, currentSegmentEnd, segmentAlpha);
+        // Calculate next position for current segment
+        const nextPositionFlat = new THREE.Vector3().lerpVectors(currentSegmentStart, currentSegmentEnd, segmentAlpha);
         
-        const direction = new THREE.Vector3().subVectors(currentSegmentEnd, currentSegmentStart).normalize();
-        const quaternion = new THREE.Quaternion();
-        quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, -1), direction);
-        innerRef.current.quaternion.slerp(quaternion, 0.1); 
+        // --- TERRAIN ALIGNMENT ---
+        const offsetDist = 2.0;
+        
+        const centerH = TerrainSystem.getHeight(nextPositionFlat.x, nextPositionFlat.z);
 
-        // --- INDICATOR LOGIC ---
-        // Look ahead 2 segments to predict turn
-        const lookAheadIdx = idx + 2; 
-        let nextLeft = false;
-        let nextRight = false;
+        // Current forward direction (based on path segment)
+        const pathDirection = new THREE.Vector3().subVectors(currentSegmentEnd, currentSegmentStart).normalize();
+        
+        const pForward = nextPositionFlat.clone().add(pathDirection.clone().multiplyScalar(offsetDist));
+        const pRight = nextPositionFlat.clone().add(new THREE.Vector3().crossVectors(pathDirection, new THREE.Vector3(0,1,0)).normalize().multiplyScalar(1.0));
+        
+        const fwdH = TerrainSystem.getHeight(pForward.x, pForward.z);
+        const rightH = TerrainSystem.getHeight(pRight.x, pRight.z);
+        
+        let targetNormal = new THREE.Vector3(0, 1, 0);
+        let targetHeight = innerRef.current.position.y;
 
-        if (lookAheadIdx < fullPath.length) {
-            const nextP1 = fullPath[idx + 1];
-            const nextP2 = fullPath[lookAheadIdx];
-            const futureDir = new THREE.Vector3().subVectors(nextP2, nextP1).normalize();
+        if (centerH !== null && fwdH !== null && rightH !== null) {
+            targetHeight = centerH + 0.5; // Suspension offset
 
-            // Check angle
-            // Dot product: 1 = straight, 0 = 90deg
-            const dot = direction.dot(futureDir);
+            const vCenter = new THREE.Vector3(nextPositionFlat.x, centerH, nextPositionFlat.z);
+            const vFwd = new THREE.Vector3(pForward.x, fwdH, pForward.z);
+            const vRight = new THREE.Vector3(pRight.x, rightH, pRight.z);
             
-            // If turn is sharp enough (< 0.95 roughly 18 degrees)
-            if (dot < 0.95) {
-                // Cross product Y component tells us left vs right
-                // car forward is (0,0,-1) roughly? No, we used direction.
-                // Cross(currentDir, futureDir)
-                // If Y > 0, Left turn (in standard 3D? Let's verify).
-                // X=1 (Right), Z=0. Next Z=-1 (Up). Cross(Right, Up) = (0, -1, 0)?
-                // Let's stick to standard Y-up.
-                // Left is usually positive Y in cross product of (Forward, NewForward).
-                const crossY = direction.x * futureDir.z - direction.z * futureDir.x;
-                // Actually 2D cross product scalar.
-                // If we are looking -Z. Left is -X.
-                // Let's test: Current (0,0,-1). Turn Left (-1,0,0).
-                // crossY = 0*0 - (-1)*(-1) = -1. 
-                // So Y < 0 is Left?
-                // Turn Right (1,0,0).
-                // crossY = 0*0 - (-1)*1 = 1.
-                // So Y > 0 is Right?
-                
-                // Correction: In standard coords (Right-handed):
-                // X x Z = -Y.
-                // Let's just assume and flip if wrong. Usually Y>0 is Left in map logic if Y is Up.
-                // Wait, latLonToMeters: x=lon, z=-lat. 
-                // North is -Z. East is +X.
-                // Forward -Z. Turn Left -> West -> -X.
-                // Current(0,0,-1). Next(-1,0,0).
-                // Cross = (0)(-1) - (0)(-1) ... wait x1*z2 - z1*x2
-                // (0)(0) - (-1)(-1) = -1.
-                // So Negative is Left. Positive is Right.
-                
-                if (crossY < -0.1) nextLeft = true;
-                if (crossY > 0.1) nextRight = true;
-            }
+            const v1 = new THREE.Vector3().subVectors(vFwd, vCenter);
+            const v2 = new THREE.Vector3().subVectors(vRight, vCenter);
+            
+            targetNormal.crossVectors(v1, v2).normalize();
+            if (targetNormal.y < 0) targetNormal.negate();
+        } else if (centerH !== null) {
+            targetHeight = centerH + 0.5;
         }
 
-        if (nextLeft !== autoIndicating.left || nextRight !== autoIndicating.right) {
-            setAutoIndicating({ left: nextLeft, right: nextRight });
-        }
+        // Smoothly interpolate Y
+        const yLerpFactor = 10.0 * delta; 
+        nextPositionFlat.y = THREE.MathUtils.lerp(innerRef.current.position.y, targetHeight, yLerpFactor);
 
-        // Terrain Snapping
-        const terrainHeight = TerrainSystem.getHeight(nextPosition.x, nextPosition.z);
-        if (terrainHeight !== null) {
-            nextPosition.y = terrainHeight + 0.5;
+        // Prevent falling through ground
+        if (centerH !== null && nextPositionFlat.y < centerH + 0.3) {
+            nextPositionFlat.y = centerH + 0.3;
         }
+        
+        // Smoothly slerp Up vector for smooth tilt
+        currentUp.current.lerp(targetNormal, 5.0 * delta).normalize();
 
-        innerRef.current.position.copy(nextPosition);
+        // Re-orthogonalize to create rotation matrix
+        const rightVec = new THREE.Vector3().crossVectors(pathDirection, currentUp.current).normalize();
+        const realForward = new THREE.Vector3().crossVectors(currentUp.current, rightVec).normalize();
+        
+        const rotationMatrix = new THREE.Matrix4().makeBasis(rightVec, currentUp.current, realForward);
+        const targetQuat = new THREE.Quaternion().setFromRotationMatrix(rotationMatrix);
+
+        innerRef.current.position.copy(nextPositionFlat);
+        innerRef.current.quaternion.copy(targetQuat);
+        
+        // --- INDICATOR LOGIC ---
 
         if (segmentAlpha >= 1) {
             currentPathIndex.current++;

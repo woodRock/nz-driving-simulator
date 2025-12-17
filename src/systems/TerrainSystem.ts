@@ -6,14 +6,14 @@ const TILE_SEGMENTS = 32; // Matches TerrainTile segments
 
 class TerrainSystemManager {
     private tiles: Map<string, Float32Array> = new Map();
-    private listeners: Set<() => void> = new Set();
+    private listeners: Set<(key: string) => void> = new Set();
 
     // Register raw height data for a tile
     // heightData should be (TILE_SEGMENTS + 1) ^ 2 length (row-major)
     registerTile(col: number, row: number, heightData: Float32Array) {
         const key = `${col},${row}`;
         this.tiles.set(key, heightData);
-        this.notifyListeners();
+        this.notifyListeners(key);
     }
 
     getTileData(col: number, row: number) {
@@ -86,13 +86,13 @@ class TerrainSystemManager {
         return h;
     }
 
-    subscribe(callback: () => void) {
+    subscribe(callback: (key: string) => void) {
         this.listeners.add(callback);
         return () => this.listeners.delete(callback);
     }
 
-    private notifyListeners() {
-        this.listeners.forEach(cb => cb());
+    private notifyListeners(key: string) {
+        this.listeners.forEach(cb => cb(key));
     }
 }
 
