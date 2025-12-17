@@ -13,7 +13,9 @@ export const UI: React.FC = () => {
         selectScenario,
         goToMenu,
         isPaused,         // Get isPaused state
-        togglePause       // Get togglePause action
+        togglePause,      // Get togglePause action
+        mapType,
+        setMapType
     } = useGameStore();
 
     const [showControls, setShowControls] = useState(false); // New state for controls visibility
@@ -76,6 +78,18 @@ export const UI: React.FC = () => {
   
           <div style={{ marginTop: '20px' }}>
               <p>Free Roam:</p>
+              <div style={{ marginBottom: '10px' }}>
+                  <label htmlFor="mapType" style={{ marginRight: '10px' }}>Map Layer:</label>
+                  <select 
+                    id="mapType" 
+                    value={mapType} 
+                    onChange={(e) => setMapType(e.target.value as 'osm' | 'satellite')}
+                    style={{ padding: '5px' }}
+                  >
+                      <option value="satellite">Satellite (Photo)</option>
+                      <option value="osm">OpenStreetMap (Standard)</option>
+                  </select>
+              </div>
               <button onClick={() => selectScenario('wellington')} style={{ margin: '5px', padding: '10px 20px', fontSize: '1em', cursor: 'pointer' }}>
               Wellington City
               </button>
@@ -119,6 +133,23 @@ export const UI: React.FC = () => {
             }}>
                 <h1>PAUSED</h1>
                 <p>Press 'Esc' to resume, 'R' to restart, or choose an option below.</p>
+                
+                {/* Map Type Selector in Pause Menu (Only for Wellington Scenario ideally, but okay globally) */}
+                {currentScenario === 'wellington' && (
+                    <div style={{ margin: '10px' }}>
+                        <label htmlFor="pauseMapType" style={{ marginRight: '10px' }}>Map Layer:</label>
+                        <select 
+                            id="pauseMapType" 
+                            value={mapType} 
+                            onChange={(e) => setMapType(e.target.value as 'osm' | 'satellite')}
+                            style={{ padding: '5px', fontSize: '1em' }}
+                        >
+                            <option value="satellite">Satellite (Photo)</option>
+                            <option value="osm">OpenStreetMap (Standard)</option>
+                        </select>
+                    </div>
+                )}
+
                 <button onClick={togglePause} style={{ margin: '10px', padding: '15px 30px', fontSize: '1.5em', cursor: 'pointer' }}>
                     Resume
                 </button>

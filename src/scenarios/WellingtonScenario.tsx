@@ -7,15 +7,16 @@ import { type PhysicsObject, PhysicsSystem } from '../physics/PhysicsSystem';
 import { latLonToMeters, MAP_CENTER_LAT, MAP_CENTER_LON } from '../utils/geoUtils';
 import { StreetSigns } from '../components/world/StreetSigns';
 import { MapLayer } from '../components/world/MapLayer';
+import { SatelliteLayer } from '../components/world/SatelliteLayer';
 import { TrafficSystem } from '../components/world/TrafficSystem';
 
 export const WellingtonScenario: React.FC = () => {
-  const { setMessage, setScore, failLevel } = useGameStore();
+  const { setMessage, setScore, failLevel, mapType } = useGameStore();
   const [features, setFeatures] = useState<any[]>([]);
 
   // Define spawn and center coordinates
-  const spawnLat = -41.34052619898928;
-  const spawnLon = 174.77126271642854;
+  const spawnLat = -41.341425;
+  const spawnLon = 174.772200;
 
   // Convert spawn Lat/Lon to Meters
   const { x: spawnX, z: spawnZ } = latLonToMeters(spawnLat, spawnLon, MAP_CENTER_LAT, MAP_CENTER_LON);
@@ -70,8 +71,8 @@ export const WellingtonScenario: React.FC = () => {
 
   return (
     <group>
-      {/* Map Layer (OSM Tiles) */}
-      <MapLayer />
+      {/* Map Layer (Satellite or OSM) */}
+      {mapType === 'satellite' ? <SatelliteLayer /> : <MapLayer />}
 
       {/* Roads Visuals */}
       <Roads features={features} />
@@ -83,7 +84,7 @@ export const WellingtonScenario: React.FC = () => {
       <TrafficSystem features={features} />
 
       {/* Player Car */}
-      <Car position={[spawnX, 1, spawnZ]} /> 
+      <Car position={[spawnX, 1, spawnZ]} rotation={[0, 0, 0]} /> 
     </group>
   );
 };

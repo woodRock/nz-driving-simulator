@@ -43,12 +43,14 @@ interface GameState {
   isPaused: boolean; // New state property
   flags: Record<string, boolean>;
   retryCount: number;
+  mapType: 'osm' | 'satellite';
 
   // Actions
   setMessage: (msg: string) => void;
   setScore: (score: number) => void;
   updateTelemetry: (data: Partial<Telemetry>) => void;
   setFlag: (key: string, value: boolean) => void;
+  setMapType: (type: 'osm' | 'satellite') => void;
   
   startCareer: () => void;
   nextLevel: () => void;
@@ -70,11 +72,13 @@ export const useGameStore = create<GameState>((set, get) => ({
     isPaused: false, // Initial state for new property
     flags: {},
     retryCount: 0,
+    mapType: 'satellite',
   
     setMessage: (msg) => set({ message: msg }),
     setScore: (score) => set({ score }),
     updateTelemetry: (data) => set((state) => ({ telemetry: { ...state.telemetry, ...data } })),
     setFlag: (key, value) => set((state) => ({ flags: { ...state.flags, [key]: value } })),
+    setMapType: (type) => set({ mapType: type }),
   
     startCareer: () => {
         set({ 
