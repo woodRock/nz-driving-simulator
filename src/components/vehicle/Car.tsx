@@ -208,16 +208,17 @@ export const Car: React.FC<CarProps> = ({ position = [0, 1, 0], rotation: initia
 
       // --- Centralized Off-Road Check ---
       if (levelStatus === 'playing' && !isInitializing) {
-          const distToRoad = RoadSystem.getDistanceToRoad(carRef.current.position.x, carRef.current.position.z);
-          const offRoadThreshold = 6.0; // Assuming road width 10 (half 5) + buffer 1.0
+          const currentScenarioId = useGameStore.getState().currentScenario;
 
-          if (distToRoad > offRoadThreshold) {
-            if (useGameStore.getState().currentScenario !== "wellington") { // Exclude Wellington scenario
-              failLevel('You drove off the road!');
-            }
-              // No return here, allow other collision types to trigger their specific messages.
-              // If off-road is a definitive failure, it should ideally stop other checks.
-              // For now, let's allow it to propagate, but keep in mind that failLevel usually sets levelStatus to 'failed'.
+          if (currentScenarioId !== 'wellington') { // Only apply off-road check for non-Wellington scenarios
+              const distToRoad = RoadSystem.getDistanceToRoad(carRef.current.position.x, carRef.current.position.z);
+              const offRoadThreshold = 5.5; // Half road width (5) + small buffer
+              const carBottomY = carRef.current.position.y - (carSize.y / 2); 
+              const groundLevelThreshold = 0.5; // If car bottom is significantly above this, it's still descending
+
+              if (distToRoad > offRoadThreshold && carBottomY + 5 < groundLevelThreshold) { 
+                  failLevel('You drove off the road!');
+              }
           }
       }
 
