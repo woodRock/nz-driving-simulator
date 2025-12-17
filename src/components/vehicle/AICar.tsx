@@ -71,14 +71,14 @@ export const AICar = React.memo(forwardRef<THREE.Group, AICarProps>(({
         return () => clearInterval(interval);
     }, []);
 
-    const physicsObjectId = useRef(`aiCar_${Math.random().toFixed(5)}`);
+    const [physicsObjectId] = useState(() => `aiCar_${Math.random().toFixed(5)}`);
     const carSize = new THREE.Vector3(2, 1, 4); 
 
     useEffect(() => {
         if (!innerRef.current) return;
 
         const aiCarPhysicsObject: PhysicsObject = {
-            id: physicsObjectId.current,
+            id: physicsObjectId,
             position: innerRef.current.position,
             quaternion: innerRef.current.quaternion,
             size: carSize,
@@ -88,7 +88,7 @@ export const AICar = React.memo(forwardRef<THREE.Group, AICarProps>(({
         PhysicsSystem.registerObject(aiCarPhysicsObject);
 
         return () => {
-            PhysicsSystem.unregisterObject(physicsObjectId.current);
+            PhysicsSystem.unregisterObject(physicsObjectId);
         };
     }, []);
 
@@ -175,10 +175,9 @@ export const AICar = React.memo(forwardRef<THREE.Group, AICarProps>(({
         const rightVec = new THREE.Vector3().crossVectors(pathDirection, currentUp.current).normalize();
         const realForward = new THREE.Vector3().crossVectors(currentUp.current, rightVec).normalize();
         
-        // Basis: X=Right, Y=Up, Z=Back. 
-        // We want -Z to be Forward. So Z should be -realForward.
-        const backwards = realForward.clone().negate();
-        const rotationMatrix = new THREE.Matrix4().makeBasis(rightVec, currentUp.current, backwards);
+        // Basis: X=Right, Y=Up, Z=Forward. 
+        // We want +Z to be Forward. So Z should be realForward.
+        const rotationMatrix = new THREE.Matrix4().makeBasis(rightVec, currentUp.current, realForward);
         const targetQuat = new THREE.Quaternion().setFromRotationMatrix(rotationMatrix);
 
         innerRef.current.position.copy(nextPositionFlat);
@@ -229,7 +228,7 @@ export const AICar = React.memo(forwardRef<THREE.Group, AICarProps>(({
             }
         }
         
-        const physicsObject = PhysicsSystem.getObject(physicsObjectId.current);
+        const physicsObject = PhysicsSystem.getObject(physicsObjectId);
         if (physicsObject) {
             physicsObject.position.copy(innerRef.current.position);
             physicsObject.quaternion.copy(innerRef.current.quaternion);

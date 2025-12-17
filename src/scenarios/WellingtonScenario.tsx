@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Roads } from '../components/Roads';
 import { Car } from '../components/vehicle/Car';
 import { useGameStore } from '../store/gameStore';
@@ -24,7 +24,7 @@ export const WellingtonScenario: React.FC = () => {
   const { x: spawnX, z: spawnZ } = latLonToMeters(spawnLat, spawnLon, MAP_CENTER_LAT, MAP_CENTER_LON);
 
   // Unique ID for physics system registration for the grass (ground)
-  const grassPhysicsObjectId = useRef(`grass_${Math.random().toFixed(5)}`);
+  const [grassPhysicsObjectId] = useState(() => `grass_${Math.random().toFixed(5)}`);
   // Grass dimensions for AABB collision
   const grassSize = new THREE.Vector3(100000, 1, 100000); 
   const grassPosition = new THREE.Vector3(0, -1.0, 0); // Lowered slightly to be under map/roads
@@ -53,7 +53,7 @@ export const WellingtonScenario: React.FC = () => {
   useEffect(() => {
     // Register ground with PhysicsSystem
     const grassPhysicsObject: PhysicsObject = {
-        id: grassPhysicsObjectId.current,
+        id: grassPhysicsObjectId,
         position: grassPosition,
         quaternion: new THREE.Quaternion(),
         size: grassSize,
@@ -67,7 +67,7 @@ export const WellingtonScenario: React.FC = () => {
     PhysicsSystem.registerObject(grassPhysicsObject);
 
     return () => {
-        PhysicsSystem.unregisterObject(grassPhysicsObjectId.current);
+        PhysicsSystem.unregisterObject(grassPhysicsObjectId);
     };
   }, [failLevel]);
 

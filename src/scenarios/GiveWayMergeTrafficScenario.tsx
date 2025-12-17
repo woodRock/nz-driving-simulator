@@ -21,7 +21,7 @@ export const GiveWayMergeTrafficScenario: React.FC = () => {
   const aiCar3Ref = useRef<THREE.Group>(null); // More AI cars for continuous flow
 
   // Unique ID for physics system registration for the grass
-  const grassPhysicsObjectId = useRef(`grass_${Math.random().toFixed(5)}`);
+  const [grassPhysicsObjectId] = useState(() => `grass_${Math.random().toFixed(5)}`);
   // Grass dimensions for AABB collision
   const grassSize = new THREE.Vector3(100, 1, 100); // Based on boxGeometry args
   const grassPosition = new THREE.Vector3(0, -0.6, -10); // Matches the mesh position
@@ -33,22 +33,20 @@ export const GiveWayMergeTrafficScenario: React.FC = () => {
   useEffect(() => {
     // Register grass with PhysicsSystem
     const grassPhysicsObject: PhysicsObject = {
-        id: grassPhysicsObjectId.current,
+        id: grassPhysicsObjectId,
         position: grassPosition,
         quaternion: new THREE.Quaternion(), // Fixed object, identity quaternion
         size: grassSize,
         type: 'grass',
-        onCollide: (other: PhysicsObject) => {
-            if (other.type === 'playerCar') {
-                failLevel('You drove off the road!');
-            }
+        onCollide: (_other: PhysicsObject) => {
+            // No longer failing on grass collision directly; handled by Car.tsx
         }
     };
     PhysicsSystem.registerObject(grassPhysicsObject);
 
     // Cleanup: unregister on unmount
     return () => {
-        PhysicsSystem.unregisterObject(grassPhysicsObjectId.current);
+        PhysicsSystem.unregisterObject(grassPhysicsObjectId);
     };
   }, [failLevel]);
 

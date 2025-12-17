@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { StraightRoad } from '../components/world/StraightRoad';
 import { Car } from '../components/vehicle/Car';
@@ -12,12 +12,12 @@ export const ParallelParkingScenario: React.FC = () => {
   const passLevel = useGameStore((state) => state.passLevel);
   
   const [finished, setFinished] = useState(false);
-  const startTime = useRef(Date.now());
+  const [startTime] = useState(() => Date.now());
 
   // Unique IDs for physics system registration
-  const grassPhysicsObjectId = useRef(`grass_${Math.random().toFixed(5)}`);
-  const barrier1PhysicsObjectId = useRef(`barrier1_${Math.random().toFixed(5)}`);
-  const barrier2PhysicsObjectId = useRef(`barrier2_${Math.random().toFixed(5)}`);
+  const [grassPhysicsObjectId] = useState(() => `grass_${Math.random().toFixed(5)}`);
+  const [barrier1PhysicsObjectId] = useState(() => `barrier1_${Math.random().toFixed(5)}`);
+  const [barrier2PhysicsObjectId] = useState(() => `barrier2_${Math.random().toFixed(5)}`);
 
   // Grass dimensions for AABB collision
   const grassSize = new THREE.Vector3(50, 1, 100); // Based on boxGeometry args
@@ -35,22 +35,20 @@ export const ParallelParkingScenario: React.FC = () => {
   useEffect(() => {
     // Register grass with PhysicsSystem
     const grassPhysicsObject: PhysicsObject = {
-        id: grassPhysicsObjectId.current,
+        id: grassPhysicsObjectId,
         position: grassPosition,
         quaternion: new THREE.Quaternion(), // Fixed object, identity quaternion
         size: grassSize,
         type: 'grass',
-        onCollide: (other: PhysicsObject) => {
-            if (other.type === 'playerCar') {
-                failLevel('You drove off the road!');
-            }
+        onCollide: (_other: PhysicsObject) => {
+            // No longer failing on grass collision directly; handled by Car.tsx
         }
     };
     PhysicsSystem.registerObject(grassPhysicsObject);
 
     // Register Barrier 1 with PhysicsSystem
     const barrier1PhysicsObject: PhysicsObject = {
-        id: barrier1PhysicsObjectId.current,
+        id: barrier1PhysicsObjectId,
         position: barrier1Position,
         quaternion: new THREE.Quaternion(),
         size: barrierSize,
@@ -65,7 +63,7 @@ export const ParallelParkingScenario: React.FC = () => {
 
     // Register Barrier 2 with PhysicsSystem
     const barrier2PhysicsObject: PhysicsObject = {
-        id: barrier2PhysicsObjectId.current,
+        id: barrier2PhysicsObjectId,
         position: barrier2Position,
         quaternion: new THREE.Quaternion(),
         size: barrierSize,
@@ -81,9 +79,9 @@ export const ParallelParkingScenario: React.FC = () => {
 
     // Cleanup: unregister on unmount
     return () => {
-        PhysicsSystem.unregisterObject(grassPhysicsObjectId.current);
-        PhysicsSystem.unregisterObject(barrier1PhysicsObjectId.current);
-        PhysicsSystem.unregisterObject(barrier2PhysicsObjectId.current);
+        PhysicsSystem.unregisterObject(grassPhysicsObjectId);
+        PhysicsSystem.unregisterObject(barrier1PhysicsObjectId);
+        PhysicsSystem.unregisterObject(barrier2PhysicsObjectId);
     };
   }, [failLevel]); // Depend on failLevel to ensure onCollide has latest ref
 
@@ -100,7 +98,7 @@ export const ParallelParkingScenario: React.FC = () => {
     // X: [-5.5 + 1, -2.5 - 1] = [-4.5, -3.5]
     // Z: [-16 + 2, -8 - 2] = [-14, -10]
     
-    if (Math.abs(speed) < 0.1 && Date.now() - startTime.current > 3000) {
+    if (Math.abs(speed) < 0.1 && Date.now() - startTime > 3000) {
         // Checking if parked strictly within lines
         if (position.x >= -4.5 && position.x <= -3.5 && position.z >= -14 && position.z <= -10) {
             passLevel();

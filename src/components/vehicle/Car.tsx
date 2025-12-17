@@ -28,12 +28,21 @@ export const Car: React.FC<CarProps> = ({ position = [0, 1, 0], rotation: initia
   const currentSteeringAngle = useRef(0);
   
   const [blink, setBlink] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(true); // New state for initialization flag
   const [physicsObjectId] = useState(() => `playerCar_${Math.random().toFixed(5)}`);
   const carSize = new THREE.Vector3(2, 1, 4); 
 
   useEffect(() => {
     const interval = setInterval(() => setBlink((b) => !b), 400);
     return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsInitializing(false);
+    }, 2000); // 2 seconds delay to allow car to settle
+
+    return () => clearTimeout(timer);
   }, []);
 
   useEffect(() => {
@@ -47,9 +56,10 @@ export const Car: React.FC<CarProps> = ({ position = [0, 1, 0], rotation: initia
         type: 'playerCar',
         onCollide: (other: PhysicsObject) => {
             if (levelStatus !== 'playing') return; // Don't fail twice
+            if (isInitializing) return; // Ignore collisions during initialization
 
-            if (other.type === 'roadBoundary') {
-                failLevel('You drove off the road!');
+            if (other.type === 'roadBoundary' && useGameStore.getState().currentScenario !== "wellington") {
+                failLevel(`You drove off the road!`);
             }
             else if (other.type === 'aiCar' || other.type === 'stationaryAICar') {
                 failLevel('You crashed into another car!');
@@ -67,7 +77,7 @@ export const Car: React.FC<CarProps> = ({ position = [0, 1, 0], rotation: initia
     return () => {
         PhysicsSystem.unregisterObject(physicsObjectId);
     };
-  }, [failLevel, levelStatus]);
+  }, [failLevel, levelStatus, isInitializing]);
 
   useFrame((_, delta) => {
       if (!carRef.current) return;
@@ -195,6 +205,21 @@ export const Car: React.FC<CarProps> = ({ position = [0, 1, 0], rotation: initia
       }
 
       carRef.current.position.copy(newPos);
+
+      // --- Centralized Off-Road Check ---
+      if (levelStatus === 'playing' && !isInitializing) {
+          const distToRoad = RoadSystem.getDistanceToRoad(carRef.current.position.x, carRef.current.position.z);
+          const offRoadThreshold = 6.0; // Assuming road width 10 (half 5) + buffer 1.0
+
+          if (distToRoad > offRoadThreshold) {
+            if (useGameStore.getState().currentScenario !== "wellington") { // Exclude Wellington scenario
+              failLevel('You drove off the road!');
+            }
+              // No return here, allow other collision types to trigger their specific messages.
+              // If off-road is a definitive failure, it should ideally stop other checks.
+              // For now, let's allow it to propagate, but keep in mind that failLevel usually sets levelStatus to 'failed'.
+          }
+      }
 
       // --- VISUALS ---
       if (frontLeftWheelRef.current && frontRightWheelRef.current) {

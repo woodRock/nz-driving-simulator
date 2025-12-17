@@ -22,7 +22,7 @@ export const GiveWayScenario: React.FC = () => {
   const finishedRef = useRef(false);
 
   // Unique ID for physics system registration for the grass
-  const physicsObjectId = useRef(`grass_${Math.random().toFixed(5)}`);
+  const [physicsObjectId] = useState(() => `grass_${Math.random().toFixed(5)}`);
   // Grass dimensions for AABB collision
   const grassSize = new THREE.Vector3(100, 1, 100); // Based on boxGeometry args
   const grassPosition = new THREE.Vector3(0, -0.6, -10); // Matches the mesh position
@@ -34,22 +34,20 @@ export const GiveWayScenario: React.FC = () => {
   useEffect(() => {
     // Register grass with PhysicsSystem
     const grassPhysicsObject: PhysicsObject = {
-        id: physicsObjectId.current,
+        id: physicsObjectId,
         position: grassPosition,
         quaternion: new THREE.Quaternion(), // Fixed object, identity quaternion
         size: grassSize,
         type: 'grass',
-        onCollide: (other: PhysicsObject) => {
-            if (other.type === 'playerCar') {
-                failLevel('You drove off the road!');
-            }
+        onCollide: (_other: PhysicsObject) => {
+            // No longer failing on grass collision directly; handled by Car.tsx
         }
     };
     PhysicsSystem.registerObject(grassPhysicsObject);
 
     // Cleanup: unregister on unmount
     return () => {
-        PhysicsSystem.unregisterObject(physicsObjectId.current);
+        PhysicsSystem.unregisterObject(physicsObjectId);
     };
   }, [failLevel]); // Depend on failLevel to ensure onCollide has latest ref
 
