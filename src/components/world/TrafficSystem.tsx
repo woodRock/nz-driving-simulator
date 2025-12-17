@@ -20,8 +20,8 @@ interface ActiveCar {
 }
 
 const CAR_COUNT = 8; // Reduced count for local area
-const ROAD_WIDTH = 20;
-const LANE_OFFSET = ROAD_WIDTH / 4; 
+const ROAD_WIDTH = 12; // Matches RoadChunk.tsx
+const LANE_OFFSET = ROAD_WIDTH / 5; 
 
 export const TrafficSystem: React.FC<TrafficSystemProps> = ({ features }) => {
     const [cars, setCars] = useState<ActiveCar[]>([]);
@@ -34,19 +34,25 @@ export const TrafficSystem: React.FC<TrafficSystemProps> = ({ features }) => {
 
         for (let i = 0; i < points.length; i++) {
             const current = points[i];
-            const next = points[i + 1];
-            const prev = points[i - 1];
-
-            let dir = new THREE.Vector3();
-
-            if (next) {
-                dir.subVectors(next, current).normalize();
-            } else if (prev) {
-                dir.subVectors(current, prev).normalize();
+            
+            let dir1 = new THREE.Vector3();
+            let dir2 = new THREE.Vector3();
+            
+            if (i > 0) {
+                dir1.subVectors(current, points[i-1]).normalize();
             }
+            if (i < points.length - 1) {
+                dir2.subVectors(points[i+1], current).normalize();
+            } else {
+                dir2.copy(dir1); // Use prev direction if at end
+            }
+            if (i === 0) dir1.copy(dir2); // Use next direction if at start
 
-            // Perpendicular to the left
-            const perp = new THREE.Vector3(0, 1, 0).cross(dir).normalize();
+            // Average direction
+            const avgDir = new THREE.Vector3().addVectors(dir1, dir2).normalize();
+            
+            // Perpendicular to the left (Left Hand Traffic)
+            const perp = new THREE.Vector3(0, 1, 0).cross(avgDir).normalize();
             const offset = perp.multiplyScalar(LANE_OFFSET);
             
             offsetPoints.push(current.clone().add(offset));

@@ -28,7 +28,7 @@ export const Car: React.FC<CarProps> = ({ position = [0, 1, 0], rotation: initia
   const currentSteeringAngle = useRef(0);
   
   const [blink, setBlink] = useState(false);
-  const physicsObjectId = useRef(`playerCar_${Math.random().toFixed(5)}`);
+  const [physicsObjectId] = useState(() => `playerCar_${Math.random().toFixed(5)}`);
   const carSize = new THREE.Vector3(2, 1, 4); 
 
   useEffect(() => {
@@ -40,7 +40,7 @@ export const Car: React.FC<CarProps> = ({ position = [0, 1, 0], rotation: initia
     if (!carRef.current) return;
 
     const carPhysicsObject: PhysicsObject = {
-        id: physicsObjectId.current,
+        id: physicsObjectId,
         position: carRef.current.position,
         quaternion: carQuaternionRef.current,
         size: carSize,
@@ -65,7 +65,7 @@ export const Car: React.FC<CarProps> = ({ position = [0, 1, 0], rotation: initia
     PhysicsSystem.registerObject(carPhysicsObject);
 
     return () => {
-        PhysicsSystem.unregisterObject(physicsObjectId.current);
+        PhysicsSystem.unregisterObject(physicsObjectId);
     };
   }, [failLevel, levelStatus]);
 
@@ -151,23 +151,15 @@ export const Car: React.FC<CarProps> = ({ position = [0, 1, 0], rotation: initia
       linearVelocity.current.copy(newForward).multiplyScalar(currentSpeed);
       
       const newPos = carRef.current.position.clone().add(linearVelocity.current.clone().multiplyScalar(dt));
-      
+
       // Terrain Following
       const terrainHeight = TerrainSystem.getHeight(newPos.x, newPos.z);
-      
-      // If terrain data is available, target that height.
-      // If not, maintain current height (fly/hover) or slowly descend? 
-      // Maintaining height prevents snapping to sea level (0) which causes glitches.
-      let targetHeight = carRef.current.position.y; 
+      let targetHeight;
+      const currentCarY = carRef.current.position.y;
       
       if (terrainHeight !== null) {
           // Check road proximity for layer snapping
           const distToRoad = RoadSystem.getDistanceToRoad(newPos.x, newPos.z);
-          
-          // Road visual is at h + 0.15
-          // Car Body (origin) is at y. Wheel bottoms at y - 0.25.
-          // To put wheels on Road (h+0.15): y - 0.25 = h + 0.15 => y = h + 0.40
-          // To put wheels on Terrain (h): y - 0.25 = h => y = h + 0.25
           
           let offset = 0.25; // Default (off-road)
           
@@ -180,11 +172,22 @@ export const Car: React.FC<CarProps> = ({ position = [0, 1, 0], rotation: initia
           }
 
           targetHeight = terrainHeight + offset;
+      } else {
+          // If no terrain data, gradually fall towards 0, but don't go below it.
+          // This prevents hovering at an arbitrary Y and then snapping when data loads.
+          targetHeight = Math.max(0, currentCarY - (5 * dt)); // Fall speed of 5 units/sec
       }
-      
+
       // Smoothly interpolate Y
-      const yLerpFactor = Math.min(1.0, 10.0 * dt); 
-      newPos.y = THREE.MathUtils.lerp(carRef.current.position.y, targetHeight, yLerpFactor);
+      const yLerpFactor = Math.min(1.0, 5.0 * dt); // Reduced from 10.0 * dt for smoother transitions
+      
+      // Only apply lerp if the difference is significant to reduce jittering
+      const heightDifference = Math.abs(currentCarY - targetHeight);
+      if (heightDifference > 0.01) { // Threshold of 1cm
+          newPos.y = THREE.MathUtils.lerp(currentCarY, targetHeight, yLerpFactor);
+      } else {
+          newPos.y = currentCarY; // Don't update if difference is too small
+      }
 
       // Hard floor only if we have terrain data to respect
       if (terrainHeight !== null && newPos.y < terrainHeight + 0.2) {
@@ -207,7 +210,7 @@ export const Car: React.FC<CarProps> = ({ position = [0, 1, 0], rotation: initia
       });
 
       // --- PHYSICS SYNC ---
-      const physicsObject = PhysicsSystem.getObject(physicsObjectId.current);
+      const physicsObject = PhysicsSystem.getObject(physicsObjectId);
       if (physicsObject) {
           physicsObject.position.copy(carRef.current.position);
           // Quaternion shared via ref, but explicit copy doesn't hurt if reference broke

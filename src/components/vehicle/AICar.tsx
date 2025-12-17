@@ -31,7 +31,7 @@ export const AICar = React.memo(forwardRef<THREE.Group, AICarProps>(({
     useImperativeHandle(ref, () => innerRef.current!);
 
     const [blink, setBlink] = useState(false);
-    const [autoIndicating] = useState({ left: false, right: false });
+    const [autoIndicating, setAutoIndicating] = useState({ left: false, right: false });
     
     const timeElapsed = useRef(0);
     const isDelaying = useRef(true);
@@ -44,18 +44,26 @@ export const AICar = React.memo(forwardRef<THREE.Group, AICarProps>(({
     const currentUp = useRef(new THREE.Vector3(0, 1, 0));
 
     const { fullPath, totalPathDistance } = useMemo(() => {
-        let path: THREE.Vector3[] = [];
+        let rawPath: THREE.Vector3[] = [];
         if (pathPoints && pathPoints.length > 1) {
-            path = pathPoints;
+            rawPath = pathPoints;
         } else {
-            path = [new THREE.Vector3(...startPos), new THREE.Vector3(...endPos)];
+            rawPath = [new THREE.Vector3(...startPos), new THREE.Vector3(...endPos)];
         }
 
+        // Curve smoothing
+        const curve = new THREE.CatmullRomCurve3(rawPath);
+        curve.curveType = 'centripetal';
+        
+        const length = curve.getLength();
+        const divisions = Math.max(2, Math.floor(length / 2)); 
+        const smoothedPath = curve.getPoints(divisions);
+
         let distance = 0;
-        for (let i = 0; i < path.length - 1; i++) {
-            distance += path[i].distanceTo(path[i+1]);
+        for (let i = 0; i < smoothedPath.length - 1; i++) {
+            distance += smoothedPath[i].distanceTo(smoothedPath[i+1]);
         }
-        return { fullPath: path, totalPathDistance: distance };
+        return { fullPath: smoothedPath, totalPathDistance: distance };
     }, [pathPoints, startPos, endPos]);
 
     useEffect(() => {
@@ -167,13 +175,50 @@ export const AICar = React.memo(forwardRef<THREE.Group, AICarProps>(({
         const rightVec = new THREE.Vector3().crossVectors(pathDirection, currentUp.current).normalize();
         const realForward = new THREE.Vector3().crossVectors(currentUp.current, rightVec).normalize();
         
-        const rotationMatrix = new THREE.Matrix4().makeBasis(rightVec, currentUp.current, realForward);
+        // Basis: X=Right, Y=Up, Z=Back. 
+        // We want -Z to be Forward. So Z should be -realForward.
+        const backwards = realForward.clone().negate();
+        const rotationMatrix = new THREE.Matrix4().makeBasis(rightVec, currentUp.current, backwards);
         const targetQuat = new THREE.Quaternion().setFromRotationMatrix(rotationMatrix);
 
         innerRef.current.position.copy(nextPositionFlat);
         innerRef.current.quaternion.copy(targetQuat);
         
         // --- INDICATOR LOGIC ---
+        // Look ahead by distance (e.g. 20m)
+        const lookAheadDist = 20.0; 
+        let lookAheadIdx = idx;
+        let distAccum = 0;
+        
+        while(lookAheadIdx < fullPath.length - 2 && distAccum < lookAheadDist) {
+            distAccum += fullPath[lookAheadIdx].distanceTo(fullPath[lookAheadIdx+1]);
+            lookAheadIdx++;
+        }
+
+        if (lookAheadIdx < fullPath.length - 1) {
+            const currentDir = pathDirection.clone();
+            const pNext = fullPath[lookAheadIdx];
+            const pNextNext = fullPath[lookAheadIdx + 1];
+            const nextDir = new THREE.Vector3().subVectors(pNextNext, pNext).normalize();
+            
+            // Calculate signed angle in XZ plane
+            const crossY = currentDir.x * nextDir.z - currentDir.z * nextDir.x;
+            const dot = currentDir.x * nextDir.x + currentDir.z * nextDir.z;
+            const angle = Math.atan2(crossY, dot);
+            
+            const threshold = 0.3; // ~17 degrees
+            
+            if (angle > threshold) {
+                // Positive crossY (angle) means a Right turn in this coordinate system
+                if (!autoIndicating.right) setAutoIndicating({ left: false, right: true });
+            } else if (angle < -threshold) {
+                // Negative crossY (angle) means a Left turn in this coordinate system
+                if (!autoIndicating.left) setAutoIndicating({ left: true, right: false });
+            } else {
+                // Straight
+                if (autoIndicating.left || autoIndicating.right) setAutoIndicating({ left: false, right: false });
+            }
+        }
 
         if (segmentAlpha >= 1) {
             currentPathIndex.current++;
