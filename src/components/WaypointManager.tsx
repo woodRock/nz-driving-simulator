@@ -1,0 +1,93 @@
+import React, { useState } from 'react';
+import { useGameStore } from '../store/gameStore';
+
+export const WaypointManager: React.FC = () => {
+    const { addWaypoint, removeWaypoint, waypoints } = useGameStore();
+    const [address, setAddress] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    const handleSearch = async () => {
+        if (!address.trim()) return;
+
+        setLoading(true);
+        setError(null);
+
+        try {
+            // Use Nominatim API to geocode address
+            // Bounding box for Wellington Region roughly
+            const viewbox = '174.6,-41.2,175.0,-41.4';
+            const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=1&viewbox=${viewbox}&bounded=1`;
+            
+            const response = await fetch(url, {
+                headers: {
+                    'User-Agent': 'NZDrivingSimulator/1.0'
+                }
+            });
+
+            if (!response.ok) throw new Error('Search failed');
+            
+            const data = await response.json();
+            
+            if (data && data.length > 0) {
+                const result = data[0];
+                const newWaypoint = {
+                    id: Math.random().toString(36).substr(2, 9),
+                    name: result.display_name.split(',')[0], // Use first part of address as name
+                    lat: parseFloat(result.lat),
+                    lon: parseFloat(result.lon)
+                };
+                addWaypoint(newWaypoint);
+                setAddress('');
+            } else {
+                setError('No results found for this address in Wellington.');
+            }
+        } catch (e) {
+            console.error(e);
+            setError('Failed to fetch coordinates.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <div style={{
+            background: 'rgba(0, 0, 0, 0.8)',
+            padding: '20px',
+            borderRadius: '10px',
+            color: 'white',
+            maxWidth: '400px',
+            pointerEvents: 'auto' // Re-enable pointer events inside the overlay
+        }}>
+            <h3>Waypoint Manager</h3>
+            
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
+                <input 
+                    type="text" 
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                    placeholder="Enter Wellington Address..."
+                    style={{ flex: 1, padding: '5px' }}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                />
+                <button onClick={handleSearch} disabled={loading} style={{ padding: '5px 10px', cursor: 'pointer' }}>
+                    {loading ? '...' : 'Add'}
+                </button>
+            </div>
+
+            {error && <p style={{ color: '#ff6b6b', fontSize: '0.9em' }}>{error}</p>}
+
+            <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                {waypoints.map(w => (
+                    <div key={w.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.1)', padding: '5px', marginBottom: '5px', borderRadius: '4px' }}>
+                        <span>{w.name}</span>
+                        <button onClick={() => removeWaypoint(w.id)} style={{ background: 'red', border: 'none', color: 'white', cursor: 'pointer', padding: '2px 5px', borderRadius: '3px' }}>
+                            X
+                        </button>
+                    </div>
+                ))}
+                {waypoints.length === 0 && <p style={{ color: '#aaa', fontSize: '0.9em' }}>No waypoints added.</p>}
+            </div>
+        </div>
+    );
+};

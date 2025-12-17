@@ -33,6 +33,13 @@ interface Telemetry {
     indicators: { left: boolean, right: boolean };
 }
 
+export interface Waypoint {
+    id: string;
+    name: string;
+    lat: number;
+    lon: number;
+}
+
 interface GameState {
   currentScenario: ScenarioId | 'menu';
   currentLevelIndex: number;
@@ -44,6 +51,7 @@ interface GameState {
   flags: Record<string, boolean>;
   retryCount: number;
   mapType: 'osm' | 'satellite';
+  waypoints: Waypoint[];
 
   // Actions
   setMessage: (msg: string) => void;
@@ -51,6 +59,8 @@ interface GameState {
   updateTelemetry: (data: Partial<Telemetry>) => void;
   setFlag: (key: string, value: boolean) => void;
   setMapType: (type: 'osm' | 'satellite') => void;
+  addWaypoint: (waypoint: Waypoint) => void;
+  removeWaypoint: (id: string) => void;
   
   startCareer: () => void;
   nextLevel: () => void;
@@ -73,12 +83,15 @@ export const useGameStore = create<GameState>((set, get) => ({
     flags: {},
     retryCount: 0,
     mapType: 'satellite',
+    waypoints: [],
   
     setMessage: (msg) => set({ message: msg }),
     setScore: (score) => set({ score }),
     updateTelemetry: (data) => set((state) => ({ telemetry: { ...state.telemetry, ...data } })),
     setFlag: (key, value) => set((state) => ({ flags: { ...state.flags, [key]: value } })),
     setMapType: (type) => set({ mapType: type }),
+    addWaypoint: (waypoint) => set((state) => ({ waypoints: [...state.waypoints, waypoint] })),
+    removeWaypoint: (id) => set((state) => ({ waypoints: state.waypoints.filter((w) => w.id !== id) })),
   
     startCareer: () => {
         set({ 

@@ -9,9 +9,10 @@ import { StreetSigns } from '../components/world/StreetSigns';
 import { MapLayer } from '../components/world/MapLayer';
 import { OnlineSatelliteLayer } from '../components/world/OnlineSatelliteLayer';
 import { TrafficSystem } from '../components/world/TrafficSystem';
+import { WaypointMarker } from '../components/world/WaypointMarker';
 
 export const WellingtonScenario: React.FC = () => {
-  const { setMessage, setScore, failLevel, mapType } = useGameStore();
+  const { setMessage, setScore, failLevel, mapType, waypoints } = useGameStore();
   const [features, setFeatures] = useState<any[]>([]);
 
   // Define spawn and center coordinates
@@ -82,6 +83,9 @@ export const WellingtonScenario: React.FC = () => {
 
       {/* AI Traffic */}
       <TrafficSystem features={features} />
+
+      {/* Waypoints */}
+      {waypoints.map(w => <WaypointMarker key={w.id} waypoint={w} />)}
 
       {/* Player Car */}
       <Car position={[spawnX, 1, spawnZ]} rotation={[0, 0, 0]} /> 

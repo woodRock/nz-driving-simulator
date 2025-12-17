@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'; // Import useState
 import { useGameStore, SCENARIOS } from '../store/gameStore';
+import { WaypointManager } from './WaypointManager';
 
 export const UI: React.FC = () => {
     const {
@@ -147,6 +148,13 @@ export const UI: React.FC = () => {
                             <option value="satellite">Satellite (Photo)</option>
                             <option value="osm">OpenStreetMap (Standard)</option>
                         </select>
+                    </div>
+                )}
+
+                {/* Waypoint Manager (Wellington Only) */}
+                {currentScenario === 'wellington' && (
+                    <div style={{ marginBottom: '20px' }}>
+                        <WaypointManager />
                     </div>
                 )}
 
