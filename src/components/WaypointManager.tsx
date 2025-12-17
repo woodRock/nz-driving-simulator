@@ -17,7 +17,7 @@ export const WaypointManager: React.FC = () => {
             // Use Nominatim API to geocode address
             // Bounding box for Wellington Region roughly
             const viewbox = '174.6,-41.2,175.0,-41.4';
-            const url = `/api-nominatim/search?q=${encodeURIComponent(address)}&format=json&limit=1&viewbox=${viewbox}&bounded=1&addressdetails=1`;
+            const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=1&viewbox=${viewbox}&bounded=1&addressdetails=1`;
             
             const response = await fetch(url);
 
