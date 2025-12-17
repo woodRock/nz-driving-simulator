@@ -7,7 +7,7 @@ import { type PhysicsObject, PhysicsSystem } from '../physics/PhysicsSystem';
 import { latLonToMeters, MAP_CENTER_LAT, MAP_CENTER_LON } from '../utils/geoUtils';
 import { StreetSigns } from '../components/world/StreetSigns';
 import { MapLayer } from '../components/world/MapLayer';
-import { SatelliteLayer } from '../components/world/SatelliteLayer';
+import { OnlineSatelliteLayer } from '../components/world/OnlineSatelliteLayer';
 import { TrafficSystem } from '../components/world/TrafficSystem';
 
 export const WellingtonScenario: React.FC = () => {
@@ -72,7 +72,7 @@ export const WellingtonScenario: React.FC = () => {
   return (
     <group>
       {/* Map Layer (Satellite or OSM) */}
-      {mapType === 'satellite' ? <SatelliteLayer /> : <MapLayer />}
+      {mapType === 'satellite' ? <OnlineSatelliteLayer /> : <MapLayer />}
 
       {/* Roads Visuals */}
       <Roads features={features} />
