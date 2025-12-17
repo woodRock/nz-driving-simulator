@@ -59,7 +59,7 @@ export const GiveWayRightToLeftScenario: React.FC = () => {
 
     if (!telemetry || !telemetry.position) return;
 
-    const { position, speed, indicators } = telemetry;
+    const { position, indicators } = telemetry;
     const z = position.z;
     const x = position.x;
 

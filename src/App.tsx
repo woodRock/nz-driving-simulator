@@ -23,7 +23,7 @@ import { CyclistHazardScenario } from './scenarios/CyclistHazardScenario';
 import { PedestrianIslandScenario } from './scenarios/PedestrianIslandScenario'; // New import
 
 function Scene() {
-  const { currentScenario, currentLevelIndex, levelStatus, retryCount } = useGameStore();
+  const { currentScenario, currentLevelIndex, retryCount } = useGameStore();
 
   // Unique key to force re-mount when retrying (status goes back to 'playing')
   // We combine scenario ID and status to ensure a fresh start on retry.

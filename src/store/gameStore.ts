@@ -42,6 +42,7 @@ interface GameState {
   telemetry: Telemetry;
   isPaused: boolean; // New state property
   flags: Record<string, boolean>;
+  retryCount: number;
 
   // Actions
   setMessage: (msg: string) => void;
