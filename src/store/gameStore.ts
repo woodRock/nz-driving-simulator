@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-export type ScenarioId = 'giveway' | 't-intersection' | 'roundabout' | 'stop-sign' | 'pedestrian' | 'pedestrian-island' | 'parking' | 'wellington' | 't-intersection-right' | 't-intersection-give-way' | 'stop-sign-cross-traffic' | 'giveway-merge-traffic' | 'giveway-right-to-left' | 'four-way-give-way' | 'train-crossing' | 't-intersection-left-oncoming' | 'cyclist-hazard' | 'overtaking' | 'one-lane-bridge' | 'school-bus';
+export type ScenarioId = 'giveway' | 't-intersection' | 'roundabout' | 'stop-sign' | 'pedestrian' | 'pedestrian-island' | 'parking' | 'wellington' | 't-intersection-right' | 't-intersection-give-way' | 'stop-sign-cross-traffic' | 'giveway-merge-traffic' | 'giveway-right-to-left' | 'four-way-give-way' | 'train-crossing' | 't-intersection-left-oncoming' | 'cyclist-hazard' | 'overtaking' | 'one-lane-bridge' | 'school-bus' | 'emergency-vehicle' | 'zebra-crossing' | 'flush-median';
 
 export interface ScenarioDef {
     id: ScenarioId;
@@ -9,6 +9,9 @@ export interface ScenarioDef {
 }
 
 export const SCENARIOS: ScenarioDef[] = [
+    { id: 'flush-median', title: 'Flush Median', description: 'Use the flush median to wait for a gap, then turn right.' },
+    { id: 'zebra-crossing', title: 'Zebra Crossing', description: 'Give way to pedestrians waiting to cross at the zebra crossing.' },
+    { id: 'emergency-vehicle', title: 'Emergency Vehicle', description: 'An ambulance is approaching! Pull over to the left and STOP.' },
     { id: 'school-bus', title: 'School Bus', description: 'The speed limit is 20km/h when passing a stationary school bus.' },
     { id: 'one-lane-bridge', title: 'One-Lane Bridge', description: 'Give way to oncoming traffic at the one-lane bridge.' },
     { id: 'overtaking', title: 'No Overtaking Lines', description: 'Follow the slow vehicle. Do NOT overtake on a solid yellow line. Wait for the passing lane.' },

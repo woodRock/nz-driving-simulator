@@ -24,6 +24,9 @@ import { PedestrianIslandScenario } from './scenarios/PedestrianIslandScenario';
 import { OvertakingScenario } from './scenarios/OvertakingScenario'; // New import
 import { OneLaneBridgeScenario } from './scenarios/OneLaneBridgeScenario'; // New import
 import { SchoolBusScenario } from './scenarios/SchoolBusScenario'; // New import
+import { EmergencyVehicleScenario } from './scenarios/EmergencyVehicleScenario'; // New import
+import { ZebraCrossingScenario } from './scenarios/ZebraCrossingScenario'; // New import
+import { FlushMedianScenario } from './scenarios/FlushMedianScenario'; // New import
 
 function Scene() {
   const { currentScenario, currentLevelIndex, retryCount } = useGameStore();
@@ -45,6 +48,9 @@ function Scene() {
       
       {/* Removed: <Physics debug gravity={[0, -9.81, 0]}> */}
         <group key={key}>
+          {currentScenario === 'flush-median' && <FlushMedianScenario />} {/* New scenario */}
+          {currentScenario === 'zebra-crossing' && <ZebraCrossingScenario />} {/* New scenario */}
+          {currentScenario === 'emergency-vehicle' && <EmergencyVehicleScenario />} {/* New scenario */}
           {currentScenario === 'school-bus' && <SchoolBusScenario />} {/* New scenario */}
           {currentScenario === 'one-lane-bridge' && <OneLaneBridgeScenario />} {/* New scenario */}
           {currentScenario === 'overtaking' && <OvertakingScenario />} {/* New scenario */}
