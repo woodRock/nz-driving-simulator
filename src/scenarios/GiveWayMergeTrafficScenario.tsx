@@ -85,6 +85,15 @@ export const GiveWayMergeTrafficScenario: React.FC = () => {
 
     // --- LOGIC ---
 
+    // Fail if not indicating left when entering/in the intersection to merge
+    // Player is entering main road when z < -5. Must indicate left.
+    if (z < -5 && x > -10 && !telemetry.indicators.left) {
+         failLevel('You failed to indicate left before turning!');
+         finishedRef.current = true;
+         setFinished(true);
+         return;
+    }
+
     // Fail if player enters intersection too close to any AI car
     // Player is entering main road when z < -5 (crossing the give way line)
     if (z < -5) {
