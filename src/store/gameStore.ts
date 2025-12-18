@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-export type ScenarioId = 'giveway' | 't-intersection' | 'roundabout' | 'stop-sign' | 'pedestrian' | 'pedestrian-island' | 'parking' | 'wellington' | 't-intersection-right' | 't-intersection-give-way' | 'stop-sign-cross-traffic' | 'giveway-merge-traffic' | 'giveway-right-to-left' | 'four-way-give-way' | 'train-crossing' | 't-intersection-left-oncoming' | 'cyclist-hazard' | 'overtaking' | 'one-lane-bridge' | 'school-bus' | 'emergency-vehicle' | 'zebra-crossing' | 'flush-median';
+export type ScenarioId = 'giveway' | 't-intersection' | 'roundabout' | 'stop-sign' | 'pedestrian' | 'pedestrian-island' | 'parking' | 'wellington' | 't-intersection-right' | 't-intersection-give-way' | 'stop-sign-cross-traffic' | 'giveway-merge-traffic' | 'giveway-right-to-left' | 'four-way-give-way' | 'train-crossing' | 't-intersection-left-oncoming' | 'cyclist-hazard' | 'overtaking' | 'one-lane-bridge' | 'school-bus' | 'emergency-vehicle' | 'zebra-crossing' | 'flush-median' | 'road-works' | 'unmarked-intersection' | 'livestock' | 'roundabout-give-way' | 'three-point-turn';
 
 export interface ScenarioDef {
     id: ScenarioId;
@@ -9,6 +9,11 @@ export interface ScenarioDef {
 }
 
 export const SCENARIOS: ScenarioDef[] = [
+    { id: 'three-point-turn', title: 'Three-Point Turn', description: 'The road is too narrow for a U-turn. Turn around without hitting the kerb.' },
+    { id: 'roundabout-give-way', title: 'Roundabout Give Way', description: 'Give way to traffic from your right at the roundabout.' },
+    { id: 'livestock', title: 'Livestock', description: 'Sheep on the road! Stop and wait for them to clear.' },
+    { id: 'unmarked-intersection', title: 'Unmarked Intersection', description: 'No signs. Give way to traffic from your RIGHT.' },
+    { id: 'road-works', title: 'Road Works', description: 'Temporary Speed Limit 30km/h. Slow down before the cones.' },
     { id: 'flush-median', title: 'Flush Median', description: 'Use the flush median to wait for a gap, then turn right.' },
     { id: 'zebra-crossing', title: 'Zebra Crossing', description: 'Give way to pedestrians waiting to cross at the zebra crossing.' },
     { id: 'emergency-vehicle', title: 'Emergency Vehicle', description: 'An ambulance is approaching! Pull over to the left and STOP.' },

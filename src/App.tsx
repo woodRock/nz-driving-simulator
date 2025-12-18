@@ -27,6 +27,11 @@ import { SchoolBusScenario } from './scenarios/SchoolBusScenario'; // New import
 import { EmergencyVehicleScenario } from './scenarios/EmergencyVehicleScenario'; // New import
 import { ZebraCrossingScenario } from './scenarios/ZebraCrossingScenario'; // New import
 import { FlushMedianScenario } from './scenarios/FlushMedianScenario'; // New import
+import { RoadWorksScenario } from './scenarios/RoadWorksScenario'; // New import
+import { UnmarkedIntersectionScenario } from './scenarios/UnmarkedIntersectionScenario'; // New import
+import { LivestockScenario } from './scenarios/LivestockScenario'; // New import
+import { RoundaboutGiveWayScenario } from './scenarios/RoundaboutGiveWayScenario'; // New import
+import { ThreePointTurnScenario } from './scenarios/ThreePointTurnScenario'; // New import
 
 function Scene() {
   const { currentScenario, currentLevelIndex, retryCount } = useGameStore();
@@ -48,6 +53,11 @@ function Scene() {
       
       {/* Removed: <Physics debug gravity={[0, -9.81, 0]}> */}
         <group key={key}>
+          {currentScenario === 'three-point-turn' && <ThreePointTurnScenario />} {/* New scenario */}
+          {currentScenario === 'roundabout-give-way' && <RoundaboutGiveWayScenario />} {/* New scenario */}
+          {currentScenario === 'livestock' && <LivestockScenario />} {/* New scenario */}
+          {currentScenario === 'unmarked-intersection' && <UnmarkedIntersectionScenario />} {/* New scenario */}
+          {currentScenario === 'road-works' && <RoadWorksScenario />} {/* New scenario */}
           {currentScenario === 'flush-median' && <FlushMedianScenario />} {/* New scenario */}
           {currentScenario === 'zebra-crossing' && <ZebraCrossingScenario />} {/* New scenario */}
           {currentScenario === 'emergency-vehicle' && <EmergencyVehicleScenario />} {/* New scenario */}
