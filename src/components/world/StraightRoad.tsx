@@ -6,12 +6,14 @@ interface StraightRoadProps {
   position?: [number, number, number];
   rotation?: [number, number, number];
   length?: number;
+  centerLine?: 'dashed' | 'solid-yellow' | 'double-yellow';
 }
 
 export const StraightRoad: React.FC<StraightRoadProps> = ({ 
   position = [0, 0, 0], 
   rotation = [0, 0, 0],
-  length = 10 
+  length = 10,
+  centerLine = 'dashed'
 }) => {
   const roadRef = useRef<THREE.Group>(null);
 
@@ -53,8 +55,8 @@ export const StraightRoad: React.FC<StraightRoadProps> = ({
         <meshStandardMaterial color="#333333" />
       </mesh>
 
-      {/* Center Line (Dashed) */}
-      {Array.from({ length: Math.floor(length / 2) }).map((_, i) => (
+      {/* Center Line */}
+      {centerLine === 'dashed' && Array.from({ length: Math.floor(length / 2) }).map((_, i) => (
         <mesh 
           key={i} 
           position={[0, 0.01, -length / 2 + 1 + i * 2]} 
@@ -64,6 +66,26 @@ export const StraightRoad: React.FC<StraightRoadProps> = ({
           <meshStandardMaterial color="white" />
         </mesh>
       ))}
+
+      {centerLine === 'solid-yellow' && (
+        <mesh position={[0, 0.01, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <planeGeometry args={[0.15, length]} />
+          <meshStandardMaterial color="#FFD700" />
+        </mesh>
+      )}
+
+      {centerLine === 'double-yellow' && (
+        <group>
+             <mesh position={[-0.1, 0.01, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+                <planeGeometry args={[0.1, length]} />
+                <meshStandardMaterial color="#FFD700" />
+            </mesh>
+            <mesh position={[0.1, 0.01, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+                <planeGeometry args={[0.1, length]} />
+                <meshStandardMaterial color="#FFD700" />
+            </mesh>
+        </group>
+      )}
 
       {/* Left Edge Line */}
       <mesh position={[-4.8, 0.01, 0]} rotation={[-Math.PI / 2, 0, 0]}>

@@ -10,9 +10,16 @@ import { RoadSystem } from '../../systems/RoadSystem';
 interface CarProps {
   position?: [number, number, number];
   rotation?: [number, number, number];
+  maxSpeed?: number;
+  acceleration?: number;
 }
 
-export const Car: React.FC<CarProps> = ({ position = [0, 1, 0], rotation: initialRotation = [0, 0, 0] }) => {
+export const Car: React.FC<CarProps> = ({ 
+  position = [0, 1, 0], 
+  rotation: initialRotation = [0, 0, 0],
+  maxSpeed: propsMaxSpeed = 35,
+  acceleration: propsAcceleration = 30
+}) => {
   const carRef = useRef<THREE.Group>(null);
   const frontLeftWheelRef = useRef<THREE.Group>(null);
   const frontRightWheelRef = useRef<THREE.Group>(null);
@@ -89,8 +96,8 @@ export const Car: React.FC<CarProps> = ({ position = [0, 1, 0], rotation: initia
       const { forward, backward, left, right, brake, indicateLeft, indicateRight } = controls;
 
       // Car physics constants
-      const acceleration = 30;
-      const maxSpeed = 35; 
+      const acceleration = propsAcceleration;
+      const maxSpeed = propsMaxSpeed; 
       const maxReverseSpeed = -10;
       const brakingDeceleration = 50;
       const frictionDeceleration = 10;

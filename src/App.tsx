@@ -21,6 +21,9 @@ import { TIntersectionLeftOncomingScenario } from './scenarios/TIntersectionLeft
 import { PhysicsSystem } from './physics/PhysicsSystem'; // Custom PhysicsSystem import
 import { CyclistHazardScenario } from './scenarios/CyclistHazardScenario';
 import { PedestrianIslandScenario } from './scenarios/PedestrianIslandScenario'; // New import
+import { OvertakingScenario } from './scenarios/OvertakingScenario'; // New import
+import { OneLaneBridgeScenario } from './scenarios/OneLaneBridgeScenario'; // New import
+import { SchoolBusScenario } from './scenarios/SchoolBusScenario'; // New import
 
 function Scene() {
   const { currentScenario, currentLevelIndex, retryCount } = useGameStore();
@@ -42,6 +45,9 @@ function Scene() {
       
       {/* Removed: <Physics debug gravity={[0, -9.81, 0]}> */}
         <group key={key}>
+          {currentScenario === 'school-bus' && <SchoolBusScenario />} {/* New scenario */}
+          {currentScenario === 'one-lane-bridge' && <OneLaneBridgeScenario />} {/* New scenario */}
+          {currentScenario === 'overtaking' && <OvertakingScenario />} {/* New scenario */}
           {currentScenario === 'cyclist-hazard' && <CyclistHazardScenario />}
           {currentScenario === 'giveway' && <GiveWayScenario />}
           {currentScenario === 't-intersection' && <TIntersectionScenario />}

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-export type ScenarioId = 'giveway' | 't-intersection' | 'roundabout' | 'stop-sign' | 'pedestrian' | 'pedestrian-island' | 'parking' | 'wellington' | 't-intersection-right' | 't-intersection-give-way' | 'stop-sign-cross-traffic' | 'giveway-merge-traffic' | 'giveway-right-to-left' | 'four-way-give-way' | 'train-crossing' | 't-intersection-left-oncoming' | 'cyclist-hazard';
+export type ScenarioId = 'giveway' | 't-intersection' | 'roundabout' | 'stop-sign' | 'pedestrian' | 'pedestrian-island' | 'parking' | 'wellington' | 't-intersection-right' | 't-intersection-give-way' | 'stop-sign-cross-traffic' | 'giveway-merge-traffic' | 'giveway-right-to-left' | 'four-way-give-way' | 'train-crossing' | 't-intersection-left-oncoming' | 'cyclist-hazard' | 'overtaking' | 'one-lane-bridge' | 'school-bus';
 
 export interface ScenarioDef {
     id: ScenarioId;
@@ -9,6 +9,9 @@ export interface ScenarioDef {
 }
 
 export const SCENARIOS: ScenarioDef[] = [
+    { id: 'school-bus', title: 'School Bus', description: 'The speed limit is 20km/h when passing a stationary school bus.' },
+    { id: 'one-lane-bridge', title: 'One-Lane Bridge', description: 'Give way to oncoming traffic at the one-lane bridge.' },
+    { id: 'overtaking', title: 'No Overtaking Lines', description: 'Follow the slow vehicle. Do NOT overtake on a solid yellow line. Wait for the passing lane.' },
     { id: 'cyclist-hazard', title: 'Cyclist Hazard', description: 'Watch out for the cyclist ahead!' },
     { id: 'pedestrian-island', title: 'Pedestrian Crossing (Island)', description: 'Stop until the pedestrian reaches the island, then proceed safely.' }, // New scenario
     { id: 't-intersection-right', title: 'T-Intersection (Right Turn)', description: 'Give way to ALL traffic. Turn Right. Watch for oncoming traffic and other turning vehicles!' },
