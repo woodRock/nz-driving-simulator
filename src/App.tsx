@@ -32,6 +32,10 @@ import { UnmarkedIntersectionScenario } from './scenarios/UnmarkedIntersectionSc
 import { LivestockScenario } from './scenarios/LivestockScenario'; // New import
 import { RoundaboutGiveWayScenario } from './scenarios/RoundaboutGiveWayScenario'; // New import
 import { ThreePointTurnScenario } from './scenarios/ThreePointTurnScenario'; // New import
+import { GiveWayRightVsLeftScenario } from './scenarios/GiveWayRightVsLeftScenario'; // New import
+import { GiveWayCyclistScenario } from './scenarios/GiveWayCyclistScenario'; // New import
+import { DrivewayExitScenario } from './scenarios/DrivewayExitScenario'; // New import
+import { CenterLineGiveWayScenario } from './scenarios/CenterLineGiveWayScenario'; // New import
 
 function Scene() {
   const { currentScenario, currentLevelIndex, retryCount } = useGameStore();
@@ -53,6 +57,10 @@ function Scene() {
       
       {/* Removed: <Physics debug gravity={[0, -9.81, 0]}> */}
         <group key={key}>
+          {currentScenario === 'center-line-give-way' && <CenterLineGiveWayScenario />} {/* New scenario */}
+          {currentScenario === 'driveway-exit' && <DrivewayExitScenario />} {/* New scenario */}
+          {currentScenario === 'giveway-cyclist' && <GiveWayCyclistScenario />} {/* New scenario */}
+          {currentScenario === 'giveway-right-vs-left' && <GiveWayRightVsLeftScenario />} {/* New scenario */}
           {currentScenario === 'three-point-turn' && <ThreePointTurnScenario />} {/* New scenario */}
           {currentScenario === 'roundabout-give-way' && <RoundaboutGiveWayScenario />} {/* New scenario */}
           {currentScenario === 'livestock' && <LivestockScenario />} {/* New scenario */}

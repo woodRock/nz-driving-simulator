@@ -9,15 +9,16 @@ import * as THREE from 'three';
 import { PhysicsSystem, type PhysicsObject } from '../physics/PhysicsSystem';
 
 export const RoundaboutGiveWayScenario: React.FC = () => {
-  const { setMessage, passLevel } = useGameStore();
+  const { setMessage, passLevel, failLevel } = useGameStore();
   const [finished, setFinished] = useState(false);
   const finishedRef = useRef(false);
+  const [passedFirstExit, setPassedFirstExit] = useState(false);
 
   // Grass
   const [grassPhysicsObjectId] = useState(() => `grass_${Math.random().toFixed(5)}`);
   
   useEffect(() => {
-    setMessage('Scenario: Roundabout Give Way. Give way to traffic coming from your right.');
+    setMessage('Scenario: Roundabout Give Way. Proceed STRAIGHT. Give way to traffic from your right. Signal left AFTER passing the first exit.');
   }, [setMessage]);
 
   useEffect(() => {
@@ -100,15 +101,32 @@ export const RoundaboutGiveWayScenario: React.FC = () => {
     if (finished || finishedRef.current) return;
 
     const telemetry = useGameStore.getState().telemetry;
-    const { position } = telemetry;
+    const { position, indicators } = telemetry;
 
-    // Fail: Collision (Physics).
-    // Also Fail: Entering too close (unsafe gap).
-    // Player entry zone: Z < -8.
+    // Check if passed first exit (West exit center is at Z=-20)
+    if (position.z < -20 && !passedFirstExit) {
+        setPassedFirstExit(true);
+    }
+
+    // Fail if indicating too early (before first exit) when going straight
+    if (!passedFirstExit && (indicators.left || indicators.right)) {
+        // Many drivers indicate right on approach if they are confused, but for straight it should be no signal.
+        // We'll be strict on left signal early.
+        if (indicators.left && position.z < 0) { // Only check once they enter intersection area
+            failLevel('Do not signal left until you have passed the exit before yours.');
+            finishedRef.current = true;
+            setFinished(true);
+            return;
+        }
+    }
     
-    // Success: Reached North or West (passed conflict point)
+    // Success: Reached North (passed conflict point)
     if (position.z < -35) {
-        passLevel();
+        if (indicators.left) {
+            passLevel();
+        } else {
+            failLevel('You failed to indicate left before exiting the roundabout!');
+        }
         finishedRef.current = true;
         setFinished(true);
     }
