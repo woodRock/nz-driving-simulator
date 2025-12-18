@@ -7,6 +7,14 @@ class RoadSystemManager {
         this.graph = new RoadGraph(features);
     }
 
+    merge(features: any[]) {
+        if (!this.graph) {
+            this.graph = new RoadGraph(features);
+        } else {
+            this.graph.mergeFeatures(features);
+        }
+    }
+
     getDistanceToRoad(x: number, z: number): number {
         if (!this.graph) return Infinity;
         return this.graph.getDistanceToRoad(x, z);

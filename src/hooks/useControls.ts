@@ -66,12 +66,28 @@ export const useControls = () => {
       }
     };
 
+    const handleBlur = () => {
+      setControls({
+        forward: false,
+        backward: false,
+        left: false,
+        right: false,
+        brake: false,
+        indicateLeft: false,
+        indicateRight: false,
+      });
+    };
+
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
+    window.addEventListener('blur', handleBlur);
+    window.addEventListener('focus', handleBlur);
 
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener('blur', handleBlur);
+      window.removeEventListener('focus', handleBlur);
     };
   }, []);
 

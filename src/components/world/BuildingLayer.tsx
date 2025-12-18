@@ -1,25 +1,26 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
+import * as BufferGeometryUtils from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { useGameStore } from '../../store/gameStore';
-import { metersToLatLon, MAP_CENTER_LAT, MAP_CENTER_LON, latLonToMeters } from '../../utils/geoUtils';
+import { metersToLatLon, MAP_CENTER_LAT, MAP_CENTER_LON, latLonToMeters, getChunkId, getChunkIdsAround } from '../../utils/geoUtils';
 import { latLonToNZTM, nztmToTile, tileToNZTMBounds, nztmToLatLon } from '../../utils/nztm';
 import { TerrainSystem } from '../../systems/TerrainSystem';
 
-const ZOOM_LEVEL = 17;
-const LOAD_RADIUS = 1; // Radius in tiles to load around player
+const TILE_ZOOM = 17;
+const LOAD_RADIUS = 1; 
 
 export const BuildingLayer: React.FC = () => {
-    const [tiles, setTiles] = useState<{ col: number, row: number, key: string }[]>([]);
     const loadedTiles = useRef<Set<string>>(new Set());
-    const [buildingFeatures, setBuildingFeatures] = useState<any[]>([]);
+    const buildingData = useRef<Map<string, any[]>>(new Map()); // ChunkID -> Features
+    const [chunksToRender, setChunksToRender] = useState<string[]>([]);
     const lastTileRef = useRef<{ col: number, row: number } | null>(null);
 
     useFrame(() => {
         const { x, z } = useGameStore.getState().telemetry.position;
         const { lat, lon } = metersToLatLon(x, z, MAP_CENTER_LAT, MAP_CENTER_LON);
         const { e, n } = latLonToNZTM(lat, lon);
-        const centerTile = nztmToTile(e, n, ZOOM_LEVEL);
+        const centerTile = nztmToTile(e, n, TILE_ZOOM);
 
         if (!lastTileRef.current || lastTileRef.current.col !== centerTile.col || lastTileRef.current.row !== centerTile.row) {
             lastTileRef.current = centerTile;
@@ -33,161 +34,179 @@ export const BuildingLayer: React.FC = () => {
                     newTiles.push({ col: tCol, row: tRow, key });
                 }
             }
-            setTiles(newTiles);
+            
+            newTiles.forEach(tile => {
+                if (!loadedTiles.current.has(tile.key)) {
+                    loadTileBuildings(tile.col, tile.row, tile.key);
+                }
+            });
+
+            // Update visible chunks (using the same chunking as roads for consistency)
+            const chunkIds = getChunkIdsAround(x, z, 3); // 3 chunk radius for buildings
+            setChunksToRender(chunkIds);
         }
     });
 
-    useEffect(() => {
-        tiles.forEach(tile => {
-            if (!loadedTiles.current.has(tile.key)) {
-                loadTileBuildings(tile.col, tile.row, tile.key);
-            }
-        });
-    }, [tiles]);
-
     const loadTileBuildings = async (col: number, row: number, key: string) => {
         loadedTiles.current.add(key);
-        
-        const bounds = tileToNZTMBounds(col, row, ZOOM_LEVEL);
+        const bounds = tileToNZTMBounds(col, row, TILE_ZOOM);
         const sw = nztmToLatLon(bounds.left, bounds.bottom);
         const ne = nztmToLatLon(bounds.right, bounds.top);
 
         const url = `https://gis.wcc.govt.nz/arcgis/rest/services/PropertyAndBoundaries/BuildingFootprints/MapServer/0/query?` +
             `geometry=${sw.lon},${sw.lat},${ne.lon},${ne.lat}&` +
-            `geometryType=esriGeometryEnvelope&` +
-            `spatialRel=esriSpatialRelIntersects&` +
-            `inSR=4326&` +
-            `outSR=4326&` +
-            `outFields=*&` +
-            `f=geojson`;
+            `geometryType=esriGeometryEnvelope&spatialRel=esriSpatialRelIntersects&inSR=4326&outSR=4326&outFields=*&f=geojson`;
 
         try {
             const response = await fetch(url);
-            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             const data = await response.json();
             if (data.features) {
-                // Filter out features that might have been loaded by another tile (though ArcGIS query with intersects should be fine)
-                // We use Building_Spatial_ID_1 as a unique identifier if possible
-                setBuildingFeatures(prev => {
-                    const existingIds = new Set(prev.map(f => f.properties.Building_Spatial_ID_1 || f.id));
-                    const newFeatures = data.features.filter((f: any) => !existingIds.has(f.properties.Building_Spatial_ID_1 || f.id));
-                    return [...prev, ...newFeatures];
+                data.features.forEach((f: any) => {
+                    const coords = f.geometry.type === 'Polygon' ? f.geometry.coordinates[0][0] : f.geometry.coordinates[0][0][0];
+                    const { x, z } = latLonToMeters(coords[1], coords[0]);
+                    const cid = getChunkId(x, z);
+                    
+                    if (!buildingData.current.has(cid)) buildingData.current.set(cid, []);
+                    const existing = buildingData.current.get(cid)!;
+                    if (!existing.find(e => e.properties.Building_Spatial_ID_1 === f.properties.Building_Spatial_ID_1)) {
+                        existing.push(f);
+                    }
                 });
+                setChunksToRender(prev => [...prev]); // Trigger re-render
             }
         } catch (e) {
-            console.error(`Failed to load buildings for tile ${key}`, e);
-            // Optionally remove from loadedTiles so it can retry
-            // loadedTiles.current.delete(key);
+            console.error(e);
         }
     };
 
     return (
         <group>
-            {buildingFeatures.map((f) => (
-                <Building key={f.properties.Building_Spatial_ID_1 || f.id} feature={f} />
+            {chunksToRender.map(cid => (
+                <BuildingChunk key={cid} features={buildingData.current.get(cid) || []} />
             ))}
         </group>
     );
 };
 
-const Building = ({ feature }: { feature: any }) => {
-    const { geometry, properties } = feature;
-    const height = properties.approx_hei || 6;
-    const [y, setY] = useState(0);
+const BuildingChunk = React.memo(({ features }: { features: any[] }) => {
+    const [version, setVersion] = useState(0);
     const [isVisible, setIsVisible] = useState(false);
     const centerRef = useRef<THREE.Vector3>(new THREE.Vector3());
+    const [mergedMeshes, setMergedMeshes] = useState<{ geometry: THREE.BufferGeometry, color: string }[] | null>(null);
+    const isGenerating = useRef(false);
 
-    const color = useMemo(() => {
-        const id = properties.Building_Spatial_ID_1 || properties.OBJECTID_1 || Math.random();
-        const colors = ['#99aabb', '#aabbee', '#8899aa', '#778899', '#aabbcc', '#9999aa'];
-        const index = Math.abs(JSON.stringify(id).split('').reduce((a, b) => {
-            a = ((a << 5) - a) + b.charCodeAt(0);
-            return a & a;
-        }, 0)) % colors.length;
-        return colors[index];
-    }, [properties]);
-
-    const meshes = useMemo(() => {
-        if (!geometry || (geometry.type !== 'Polygon' && geometry.type !== 'MultiPolygon')) return [];
-
-        const polygons = geometry.type === 'Polygon' ? [geometry.coordinates] : geometry.coordinates;
-        
-        let sumX = 0, sumZ = 0, totalCount = 0;
-
-        const results = polygons.map((poly: number[][][]) => {
-            const shape = new THREE.Shape();
-            const exterior = poly[0];
-            
-            exterior.forEach((coord: number[], i: number) => {
-                const { x, z } = latLonToMeters(coord[1], coord[0], MAP_CENTER_LAT, MAP_CENTER_LON);
-                if (i === 0) shape.moveTo(x, -z);
-                else shape.lineTo(x, -z);
-                sumX += x;
-                sumZ += z;
-                totalCount++;
-            });
-
-            // Holes
-            for (let h = 1; h < poly.length; h++) {
-                const hole = new THREE.Path();
-                poly[h].forEach((coord: number[], i: number) => {
-                    const { x, z } = latLonToMeters(coord[1], coord[0], MAP_CENTER_LAT, MAP_CENTER_LON);
-                    if (i === 0) hole.moveTo(x, -z);
-                    else hole.lineTo(x, -z);
-                });
-                shape.holes.push(hole);
-            }
-
-            const extrudeSettings = {
-                depth: height,
-                bevelEnabled: false,
-            };
-
-            const geom = new THREE.ExtrudeGeometry(shape, extrudeSettings);
-            geom.rotateX(-Math.PI / 2);
-            return geom;
-        });
-
-        if (totalCount > 0) {
-            centerRef.current.set(sumX / totalCount, 0, sumZ / totalCount);
+    useEffect(() => {
+        if (features.length > 0) {
+            const firstCoord = features[0].geometry.type === 'Polygon' ? features[0].geometry.coordinates[0][0] : features[0].geometry.coordinates[0][0][0];
+            const { x, z } = latLonToMeters(firstCoord[1], firstCoord[0]);
+            centerRef.current.set(x, 0, z);
         }
-
-        return results;
-    }, [geometry, height]);
+    }, [features]);
 
     useFrame(() => {
         const playerPos = useGameStore.getState().telemetry.position;
         const dist = centerRef.current.distanceTo(new THREE.Vector3(playerPos.x, 0, playerPos.z));
-        setIsVisible(dist < 500); // Only render within 500m
+        setIsVisible(dist < 500);
     });
 
     useEffect(() => {
-        const initialH = TerrainSystem.getHeight(centerRef.current.x, centerRef.current.z);
-        if (initialH !== null) {
-            setY(initialH);
-        } else {
-            const unsubscribe = TerrainSystem.subscribe(() => {
-                const h = TerrainSystem.getHeight(centerRef.current.x, centerRef.current.z);
-                if (h !== null) {
-                    setY(h);
-                    unsubscribe();
-                }
-            });
-            return () => {
-                unsubscribe();
-            };
-        }
-    }, [geometry]);
+        const unsubscribe = TerrainSystem.subscribe(() => {
+            setVersion(v => v + 1);
+        });
+        return () => { unsubscribe(); };
+    }, []);
 
-    if (!isVisible) return null;
+    useEffect(() => {
+        if (features.length === 0 || !isVisible || isGenerating.current) return;
+
+        let cancelled = false;
+        isGenerating.current = true;
+
+        const generateAsync = async () => {
+            const colorGroups: Map<string, THREE.BufferGeometry[]> = new Map();
+            const palette = ['#99aabb', '#aabbee', '#8899aa', '#778899', '#aabbcc', '#9999aa'];
+            const BATCH_SIZE = 15;
+            
+            for (let i = 0; i < features.length; i++) {
+                if (cancelled) break;
+
+                const f = features[i];
+                const { geometry, properties } = f;
+                const height = properties.approx_hei || 6;
+                const polygons = geometry.type === 'Polygon' ? [geometry.coordinates] : geometry.coordinates;
+                
+                const firstCoord = geometry.type === 'Polygon' ? geometry.coordinates[0][0] : geometry.coordinates[0][0][0];
+                const { x: bx, z: bz } = latLonToMeters(firstCoord[1], firstCoord[0]);
+                const groundY = TerrainSystem.getHeight(bx, bz) || 0;
+
+                const id = properties.Building_Spatial_ID_1 || properties.OBJECTID_1 || Math.random();
+                const colorIndex = Math.abs(JSON.stringify(id).split('').reduce((a, b) => {
+                    a = ((a << 5) - a) + b.charCodeAt(0);
+                    return a & a;
+                }, 0)) % palette.length;
+                const color = palette[colorIndex];
+
+                if (!colorGroups.has(color)) colorGroups.set(color, []);
+                const group = colorGroups.get(color)!;
+
+                polygons.forEach((poly: number[][][]) => {
+                    const shape = new THREE.Shape();
+                    const exterior = poly[0];
+                    exterior.forEach((coord: number[], idx: number) => {
+                        const { x, z } = latLonToMeters(coord[1], coord[0]);
+                        if (idx === 0) shape.moveTo(x, -z);
+                        else shape.lineTo(x, -z);
+                    });
+
+                    for (let h = 1; h < poly.length; h++) {
+                        const hole = new THREE.Path();
+                        poly[h].forEach((coord: number[], idx: number) => {
+                            const { x, z } = latLonToMeters(coord[1], coord[0]);
+                            if (idx === 0) hole.moveTo(x, -z);
+                            else hole.lineTo(x, -z);
+                        });
+                        shape.holes.push(hole);
+                    }
+
+                    const extrudeSettings = { depth: height, bevelEnabled: false };
+                    const geom = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+                    geom.rotateX(-Math.PI / 2);
+                    geom.translate(0, groundY, 0);
+                    group.push(geom);
+                });
+
+                if (i % BATCH_SIZE === 0) {
+                    await new Promise(resolve => setTimeout(resolve, 0));
+                }
+            }
+
+            if (!cancelled) {
+                const results: { geometry: THREE.BufferGeometry, color: string }[] = [];
+                colorGroups.forEach((geoms, color) => {
+                    if (geoms.length > 0) {
+                        const merged = BufferGeometryUtils.mergeGeometries(geoms);
+                        results.push({ geometry: merged, color });
+                        geoms.forEach(g => g.dispose());
+                    }
+                });
+                setMergedMeshes(results);
+            }
+            isGenerating.current = false;
+        };
+
+        generateAsync();
+        return () => { cancelled = true; isGenerating.current = false; };
+    }, [features, isVisible, version]);
+
+    if (!isVisible || !mergedMeshes) return null;
 
     return (
-        <group position={[0, y, 0]}>
-            {meshes.map((geom: THREE.ExtrudeGeometry, i: number) => (
-                <mesh key={i} geometry={geom} castShadow receiveShadow>
-                    <meshStandardMaterial color={color} />
+        <group>
+            {mergedMeshes.map((m, i) => (
+                <mesh key={i} geometry={m.geometry} castShadow receiveShadow>
+                    <meshStandardMaterial color={m.color} roughness={0.7} />
                 </mesh>
             ))}
         </group>
     );
-};
+});

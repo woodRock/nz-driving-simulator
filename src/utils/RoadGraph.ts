@@ -18,6 +18,7 @@ export interface GraphEdge {
 export class RoadGraph {
     nodes: Map<string, GraphNode> = new Map();
     chunkedNodes: Map<string, GraphNode[]> = new Map();
+    private processedWayIds: Set<string | number> = new Set();
 
     constructor(features: any[]) {
         this.buildGraph(features);
@@ -27,8 +28,17 @@ export class RoadGraph {
         return `${Math.round(x)},${Math.round(z)}`;
     }
 
+    public mergeFeatures(features: any[]) {
+        this.buildGraph(features);
+    }
+
     private buildGraph(features: any[]) {
         features.forEach((feature: any) => {
+            // Check if we've already processed this way to avoid duplicates
+            const osmId = feature.id || feature.properties?.id;
+            if (osmId && this.processedWayIds.has(osmId)) return;
+            if (osmId) this.processedWayIds.add(osmId);
+
             if (!feature.geometry) return;
             const type = feature.geometry.type;
             const coords = feature.geometry.coordinates;

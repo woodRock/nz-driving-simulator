@@ -36,7 +36,7 @@ export const WellingtonScenario: React.FC = () => {
     setMessage('Welcome to Wellington! Drive around. (Roads are visual guides only)');
     setScore(0);
     
-    // Fetch road data
+    // Initial road data
     const fetchRoadData = async () => {
         try {
           const response = await fetch(`${import.meta.env.BASE_URL}wellington_roads.geojson`);

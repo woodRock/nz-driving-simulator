@@ -208,11 +208,11 @@ export const Car: React.FC<CarProps> = ({ position = [0, 1, 0], rotation: initia
 
       carRef.current.position.copy(newPos);
 
-      // --- Centralized Off-Road Check ---
+      // --- Centralized Off-Road Check (Once per frame) ---
       if (levelStatus === 'playing' && !isInitializing) {
           const currentScenarioId = useGameStore.getState().currentScenario;
 
-          if (currentScenarioId !== 'wellington') { // Only apply off-road check for non-Wellington scenarios
+          if (currentScenarioId !== 'wellington') { 
               const distToRoad = RoadSystem.getDistanceToRoad(carRef.current.position.x, carRef.current.position.z);
               const offRoadThreshold = 5.5; // Half road width (5) + small buffer
               const carBottomY = carRef.current.position.y - (carSize.y / 2); 
