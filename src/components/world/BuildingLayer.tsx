@@ -94,6 +94,8 @@ const Building = ({ feature }: { feature: any }) => {
     const { geometry, properties } = feature;
     const height = properties.approx_hei || 6;
     const [y, setY] = useState(0);
+    const [isVisible, setIsVisible] = useState(false);
+    const centerRef = useRef<THREE.Vector3>(new THREE.Vector3());
 
     const color = useMemo(() => {
         const id = properties.Building_Spatial_ID_1 || properties.OBJECTID_1 || Math.random();
@@ -110,7 +112,9 @@ const Building = ({ feature }: { feature: any }) => {
 
         const polygons = geometry.type === 'Polygon' ? [geometry.coordinates] : geometry.coordinates;
         
-        return polygons.map((poly: number[][][]) => {
+        let sumX = 0, sumZ = 0, totalCount = 0;
+
+        const results = polygons.map((poly: number[][][]) => {
             const shape = new THREE.Shape();
             const exterior = poly[0];
             
@@ -118,6 +122,9 @@ const Building = ({ feature }: { feature: any }) => {
                 const { x, z } = latLonToMeters(coord[1], coord[0], MAP_CENTER_LAT, MAP_CENTER_LON);
                 if (i === 0) shape.moveTo(x, -z);
                 else shape.lineTo(x, -z);
+                sumX += x;
+                sumZ += z;
+                totalCount++;
             });
 
             // Holes
@@ -140,27 +147,27 @@ const Building = ({ feature }: { feature: any }) => {
             geom.rotateX(-Math.PI / 2);
             return geom;
         });
+
+        if (totalCount > 0) {
+            centerRef.current.set(sumX / totalCount, 0, sumZ / totalCount);
+        }
+
+        return results;
     }, [geometry, height]);
 
-    useEffect(() => {
-        const getCenter = () => {
-            const coords = geometry.type === 'Polygon' ? geometry.coordinates[0] : geometry.coordinates[0][0];
-            let sumX = 0, sumZ = 0;
-            coords.forEach((c: number[]) => {
-                const { x, z } = latLonToMeters(c[1], c[0], MAP_CENTER_LAT, MAP_CENTER_LON);
-                sumX += x;
-                sumZ += z;
-            });
-            return { x: sumX / coords.length, z: sumZ / coords.length };
-        };
+    useFrame(() => {
+        const playerPos = useGameStore.getState().telemetry.position;
+        const dist = centerRef.current.distanceTo(new THREE.Vector3(playerPos.x, 0, playerPos.z));
+        setIsVisible(dist < 500); // Only render within 500m
+    });
 
-        const center = getCenter();
-        const initialH = TerrainSystem.getHeight(center.x, center.z);
+    useEffect(() => {
+        const initialH = TerrainSystem.getHeight(centerRef.current.x, centerRef.current.z);
         if (initialH !== null) {
             setY(initialH);
         } else {
             const unsubscribe = TerrainSystem.subscribe(() => {
-                const h = TerrainSystem.getHeight(center.x, center.z);
+                const h = TerrainSystem.getHeight(centerRef.current.x, centerRef.current.z);
                 if (h !== null) {
                     setY(h);
                     unsubscribe();
@@ -171,6 +178,8 @@ const Building = ({ feature }: { feature: any }) => {
             };
         }
     }, [geometry]);
+
+    if (!isVisible) return null;
 
     return (
         <group position={[0, y, 0]}>

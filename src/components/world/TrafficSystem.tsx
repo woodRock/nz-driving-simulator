@@ -67,7 +67,10 @@ export const TrafficSystem: React.FC<TrafficSystemProps> = ({ features }) => {
         if (now < nextSpawnTime.current) return;
 
         const playerPos = useGameStore.getState().telemetry.position;
-        // const currentChunkId = getChunkId(playerPos.x, playerPos.z);
+        if (isNaN(playerPos.x) || isNaN(playerPos.z)) {
+            console.warn("TrafficSystem: Player position is NaN", playerPos);
+            return;
+        }
         
         // Active area: Current chunk + immediate neighbors (radius 1 = 3x3 grid)
         const activeChunkIds = getChunkIdsAround(playerPos.x, playerPos.z, 1);
@@ -75,7 +78,6 @@ export const TrafficSystem: React.FC<TrafficSystemProps> = ({ features }) => {
 
         setCars(prevCars => {
             // Cull cars that started in chunks no longer active
-            // (Simplification: cars might drive INTO active chunks, but generally we want to spawn/despawn based on player locality)
             const keptCars = prevCars.filter(car => activeChunkSet.has(car.currentChunkId));
 
             if (keptCars.length < CAR_COUNT) {
@@ -84,10 +86,9 @@ export const TrafficSystem: React.FC<TrafficSystemProps> = ({ features }) => {
                 const spawnNode = graph.getRandomNodeInChunk(spawnChunkId);
 
                 if (spawnNode) {
-                    // Don't spawn too close to player?
-                    const distToPlayer = spawnNode.position.distanceTo(new THREE.Vector3(playerPos.x, 0, playerPos.z));
+                    const distToPlayer = spawnNode.position.distanceTo(new THREE.Vector3(playerPos.x, playerPos.y, playerPos.z));
                     
-                    if (distToPlayer > 50) { // Minimum 50m spawn distance
+                    if (distToPlayer > 50) { 
                         const rawPath = graph.getRandomPath(spawnNode.id, 10);
                         if (rawPath.length > 1) {
                             const offsetPath = applyLaneOffset(rawPath);
@@ -99,8 +100,13 @@ export const TrafficSystem: React.FC<TrafficSystemProps> = ({ features }) => {
                                 currentChunkId: spawnChunkId
                             };
                             keptCars.push(newCar);
+                            console.log(`TrafficSystem: Spawned car at chunk ${spawnChunkId}, total cars: ${keptCars.length}`);
+                        } else {
+                            console.log(`TrafficSystem: Failed to get random path from node ${spawnNode.id}`);
                         }
                     }
+                } else {
+                    // console.log(`TrafficSystem: No nodes found in chunk ${spawnChunkId}`);
                 }
             }
             return keptCars;

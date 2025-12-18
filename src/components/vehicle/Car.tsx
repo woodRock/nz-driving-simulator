@@ -100,7 +100,7 @@ export const Car: React.FC<CarProps> = ({ position = [0, 1, 0], rotation: initia
       const wheelTurnVisualFactor = 1.0; 
 
       // Calc current speed relative to car forward direction
-      const forwardDir = new THREE.Vector3(0,0,-1).applyQuaternion(carQuaternionRef.current);
+      const forwardDir = new THREE.Vector3(0,0,-1).applyQuaternion(carQuaternionRef.current).normalize();
       let currentSpeed = linearVelocity.current.dot(forwardDir);
 
       // --- STEERING ---
@@ -144,20 +144,22 @@ export const Car: React.FC<CarProps> = ({ position = [0, 1, 0], rotation: initia
 
       // --- TURNING (Ackermann) ---
       if (Math.abs(currentSpeed) > 0.1) {
-          const turnRadius = wheelbase / Math.tan(currentSteeringAngle.current);
           // angular velocity = v / r
-          const rotationAmount = (currentSpeed / turnRadius) * dt;
+          // r = wheelbase / tan(steeringAngle)
+          // rotationAmount = (v * tan(steeringAngle) / wheelbase) * dt
+          const rotationAmount = (currentSpeed * Math.tan(currentSteeringAngle.current) * dt) / wheelbase;
           
           if (Math.abs(rotationAmount) > 0.0001) {
             const rotQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), rotationAmount);
             carQuaternionRef.current.multiply(rotQuat);
+            carQuaternionRef.current.normalize(); // Crucial: prevent drift and scale issues
             carRef.current.quaternion.copy(carQuaternionRef.current);
           }
       }
 
       // Apply Velocity
       // Recalculate forward vector based on new rotation
-      const newForward = new THREE.Vector3(0, 0, -1).applyQuaternion(carQuaternionRef.current);
+      const newForward = new THREE.Vector3(0, 0, -1).applyQuaternion(carQuaternionRef.current).normalize();
       linearVelocity.current.copy(newForward).multiplyScalar(currentSpeed);
       
       const newPos = carRef.current.position.clone().add(linearVelocity.current.clone().multiplyScalar(dt));
